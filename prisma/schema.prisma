@@ -1,0 +1,346 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Plan {
+  FREE_TRIAL
+  BASIC
+  PRO
+}
+
+enum RevenueSource {
+  SUMUP
+  TAKEPAYMENTS
+  CASH
+  OTHER
+}
+
+enum EmployeeType {
+  HOURLY
+  SALARIED
+}
+
+enum StockMovementType {
+  IN
+  OUT
+  WASTAGE
+}
+
+enum PlatformName {
+  UBEREATS
+  DELIVEROO
+  JUSTEAT
+  WALKIN
+  OTHER
+}
+
+enum AllocationMethod {
+  BY_ORDERS
+  BY_REVENUE
+  BY_TIME
+}
+
+enum CorrelationDirection {
+  POSITIVE
+  NEGATIVE
+  NONE
+}
+
+enum CorrelationStrength {
+  STRONG
+  MODERATE
+  WEAK
+}
+
+enum ExpectancyEntityType {
+  PLATFORM
+  PROMOTION
+  EMPLOYEE
+  INGREDIENT
+}
+
+enum ImportStatus {
+  SUCCESS
+  FAILED
+  PARTIAL
+}
+
+// ─── Restaurant (Tenant) ─────────────────────────────────────────────────────
+
+model Restaurant {
+  id                   String                    @id @default(cuid())
+  name                 String
+  slug                 String                    @unique
+  inboundEmail         String                    @unique
+  currency             String                    @default("GBP")
+  plan                 Plan                      @default(FREE_TRIAL)
+  trialEndsAt          DateTime
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  isActive             Boolean                   @default(true)
+  createdAt            DateTime                  @default(now())
+
+  users                User[]
+  revenueEntries       RevenueEntry[]
+  expenseCategories    ExpenseCategory[]
+  expenseEntries       ExpenseEntry[]
+  employees            Employee[]
+  payrollEntries       PayrollEntry[]
+  inventoryItems       InventoryItem[]
+  stockMovements       StockMovement[]
+  menuItems            MenuItem[]
+  notifications        Notification[]
+  importLogs           ImportLog[]
+  platforms            Platform[]
+  platformPeriods      PlatformPeriod[]
+  promotionCharges     PromotionCharge[]
+  overheadConfig       OverheadAllocationConfig?
+  correlationCache     CorrelationCache[]
+  expectancySnapshots  ExpectancySnapshot[]
+}
+
+// ─── User ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  passwordHash String
+  name         String
+  restaurantId String?
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  isAdmin      Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+}
+
+// ─── Revenue ─────────────────────────────────────────────────────────────────
+
+model RevenueEntry {
+  id           String        @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  date         DateTime
+  source       RevenueSource
+  grossAmount  Float
+  vatAmount    Float
+  netAmount    Float
+  notes        String?
+  createdAt    DateTime      @default(now())
+}
+
+// ─── Expenses ────────────────────────────────────────────────────────────────
+
+model ExpenseCategory {
+  id           String         @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name         String
+  colour       String
+  entries      ExpenseEntry[]
+}
+
+model ExpenseEntry {
+  id             String          @id @default(cuid())
+  restaurantId   String
+  restaurant     Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  date           DateTime
+  categoryId     String
+  category       ExpenseCategory @relation(fields: [categoryId], references: [id])
+  supplier       String?
+  description    String
+  netAmount      Float
+  vatAmount      Float
+  grossAmount    Float
+  vatReclaimable Boolean         @default(true)
+  receiptUrl     String?
+  createdAt      DateTime        @default(now())
+}
+
+// ─── Payroll ─────────────────────────────────────────────────────────────────
+
+model Employee {
+  id             String         @id @default(cuid())
+  restaurantId   String
+  restaurant     Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name           String
+  type           EmployeeType
+  hourlyRate     Float?
+  monthlySalary  Float?
+  startDate      DateTime
+  endDate        DateTime?
+  isActive       Boolean        @default(true)
+  payrollEntries PayrollEntry[]
+}
+
+model PayrollEntry {
+  id           String     @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  employeeId   String
+  employee     Employee   @relation(fields: [employeeId], references: [id])
+  periodStart  DateTime
+  periodEnd    DateTime
+  hoursWorked  Float?
+  grossPay     Float
+  employerNI   Float
+  notes        String?
+  createdAt    DateTime   @default(now())
+}
+
+// ─── Inventory ───────────────────────────────────────────────────────────────
+
+model InventoryItem {
+  id           String          @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name         String
+  unit         String
+  currentStock Float           @default(0)
+  reorderLevel Float
+  costPerUnit  Float
+  supplierId   String?
+  updatedAt    DateTime        @updatedAt
+  movements    StockMovement[]
+}
+
+model StockMovement {
+  id              String            @id @default(cuid())
+  restaurantId    String
+  restaurant      Restaurant        @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  inventoryItemId String
+  inventoryItem   InventoryItem     @relation(fields: [inventoryItemId], references: [id])
+  type            StockMovementType
+  quantity        Float
+  costPerUnit     Float?
+  totalCost       Float?
+  date            DateTime
+  notes           String?
+}
+
+model MenuItem {
+  id             String     @id @default(cuid())
+  restaurantId   String
+  restaurant     Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name           String
+  category       String
+  sellingPrice   Float
+  foodCostTarget Float
+  isActive       Boolean    @default(true)
+}
+
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+model Notification {
+  id           String     @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  title        String
+  body         String
+  read         Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+}
+
+// ─── Import Log ──────────────────────────────────────────────────────────────
+
+model ImportLog {
+  id           String       @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  platform     PlatformName
+  filename     String
+  status       ImportStatus
+  rowsImported Int          @default(0)
+  errorMessage String?
+  receivedAt   DateTime     @default(now())
+}
+
+// ─── Platforms (SPEC2) ───────────────────────────────────────────────────────
+
+model Platform {
+  id             String            @id @default(cuid())
+  restaurantId   String
+  restaurant     Restaurant        @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name           PlatformName
+  commissionRate Float
+  isActive       Boolean           @default(true)
+  periods        PlatformPeriod[]
+  promotions     PromotionCharge[]
+
+  @@unique([restaurantId, name])
+}
+
+model PlatformPeriod {
+  id                String     @id @default(cuid())
+  restaurantId      String
+  restaurant        Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  platformId        String
+  platform          Platform   @relation(fields: [platformId], references: [id])
+  periodStart       DateTime
+  periodEnd         DateTime
+  orderCount        Int
+  grossRevenue      Float
+  commissionCharged Float
+  netRevenue        Float
+  averageOrderValue Float
+  currency          String     @default("GBP")
+
+  @@unique([restaurantId, platformId, periodStart])
+}
+
+model PromotionCharge {
+  id            String     @id @default(cuid())
+  restaurantId  String
+  restaurant    Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  platformId    String
+  platform      Platform   @relation(fields: [platformId], references: [id])
+  periodStart   DateTime
+  periodEnd     DateTime
+  chargeAmount  Float
+  promotionType String
+  notes         String?
+}
+
+// ─── Analytics (SPEC2) ───────────────────────────────────────────────────────
+
+model OverheadAllocationConfig {
+  id           String           @id @default(cuid())
+  restaurantId String           @unique
+  restaurant   Restaurant       @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  method       AllocationMethod @default(BY_ORDERS)
+  foodCostPct  Float            @default(0.28)
+  updatedAt    DateTime         @updatedAt
+}
+
+model CorrelationCache {
+  id           String               @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant           @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  variableA    String
+  variableB    String
+  coefficient  Float
+  dataPoints   Int
+  direction    CorrelationDirection
+  strength     CorrelationStrength
+  plainEnglish String
+  calculatedAt DateTime             @default(now())
+}
+
+model ExpectancySnapshot {
+  id           String               @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant           @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  entityType   ExpectancyEntityType
+  entityId     String
+  periodWeeks  Int
+  winRate      Float
+  avgWin       Float
+  avgLoss      Float
+  expectancy   Float
+  calculatedAt DateTime             @default(now())
+}
