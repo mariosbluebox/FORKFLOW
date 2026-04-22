@@ -343,4 +343,6 @@ model ExpectancySnapshot {
   avgLoss      Float
   expectancy   Float
   calculatedAt DateTime             @default(now())
+
+  @@unique([restaurantId, entityType, entityId])
 }

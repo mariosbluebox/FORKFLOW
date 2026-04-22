@@ -48,10 +48,11 @@ Correlations → Expectancy → Health → Scenarios. Tempting because Correlati
 
 Ordered for a walking-skeleton approach: ship a narrow but end-to-end slice (channel expectancy only) by Task 6, then extend.
 
-### Task 1 — Add `ExpectancySnapshot` table
-**Build:** Add the `ExpectancySnapshot` model from SPEC2 §10 plus the `EntityType` enum (`PLATFORM`, `PROMOTION`, `EMPLOYEE`, `INGREDIENT`). Run `prisma migrate dev --name add_expectancy_snapshot`.
-**Files:** `prisma/schema.prisma`, new migration folder under `prisma/migrations/`.
-**Done when:** `npx prisma generate` succeeds; `npx tsc --noEmit` clean; a quick `prisma studio` open shows the empty table.
+### Task 1 — `ExpectancySnapshot` table ✅ DONE (2026-04-22)
+**Discovery:** The model + `ExpectancyEntityType` enum were already present in `prisma/schema.prisma` and were shipped in the `20260306013641_init_saas` migration. The Neon DB had the table from day one; only the unique constraint needed to enable Task 3's upsert pattern was missing.
+**Actual work done:** Added `@@unique([restaurantId, entityType, entityId])` to the `ExpectancySnapshot` model. Created migration `20260422232120_add_expectancy_snapshot_unique` which adds the unique index. `prisma migrate dev` couldn't run non-interactively so the migration SQL file was hand-written (identical to what Prisma would have produced) and applied via `prisma migrate deploy`.
+**Files touched:** `prisma/schema.prisma`, `prisma/migrations/20260422232120_add_expectancy_snapshot_unique/migration.sql`.
+**Verified:** `prisma migrate deploy` applied cleanly, `prisma generate` succeeded, `tsc --noEmit` clean.
 
 ### Task 2 — Add weekly aggregation helper
 **Build:** Pure function `getWeeklySnapshot(restaurantId, weekStart)` returning per-channel aggregates: orders, grossRevenue, netRevenue, commission, promoSpend, allocatedFoodCost, allocatedOverhead, allocatedPayroll, netProfit. Reads existing tables; no writes, no caching.
