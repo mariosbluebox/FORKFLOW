@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionRestaurantId, unauthorized } from '@/lib/session'
+import { allocateAmount, computeAllocationTotals } from '@/lib/analytics/allocation'
 
 export async function GET(req: Request) {
   const restaurantId = await getSessionRestaurantId()
@@ -71,21 +72,10 @@ export async function GET(req: Request) {
     })
   )
 
-  const totalOrders = platformData.reduce((sum, p) => sum + p.orders, 0)
-  const totalRevenue = platformData.reduce((sum, p) => sum + p.grossRevenue, 0)
-  const platformsWithData = platformData.filter((p) => p.orders > 0 || p.grossRevenue > 0).length
+  const allocationTotals = computeAllocationTotals(platformData)
 
   const results = platformData.map((pd) => {
-    let allocatedOverhead = 0
-
-    if (method === 'BY_ORDERS' && totalOrders > 0) {
-      allocatedOverhead = totalOverhead * (pd.orders / totalOrders)
-    } else if (method === 'BY_REVENUE' && totalRevenue > 0) {
-      allocatedOverhead = totalOverhead * (pd.grossRevenue / totalRevenue)
-    } else if (method === 'BY_TIME' && platformsWithData > 0) {
-      const hasData = pd.orders > 0 || pd.grossRevenue > 0
-      allocatedOverhead = hasData ? totalOverhead / platformsWithData : 0
-    }
+    const allocatedOverhead = allocateAmount(pd, allocationTotals, method, totalOverhead)
 
     const foodCost = pd.grossRevenue * foodCostPct
     const netResult = pd.netRevenue - foodCost - allocatedOverhead - pd.promotionTotal
@@ -133,8 +123,8 @@ export async function GET(req: Request) {
   return NextResponse.json({
     platforms: results,
     totals: {
-      totalOrders,
-      totalRevenue,
+      totalOrders: allocationTotals.orders,
+      totalRevenue: allocationTotals.grossRevenue,
       totalOverhead,
       foodCostPct,
       method,
