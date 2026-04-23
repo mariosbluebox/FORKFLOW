@@ -54,10 +54,25 @@ Ordered for a walking-skeleton approach: ship a narrow but end-to-end slice (cha
 **Files touched:** `prisma/schema.prisma`, `prisma/migrations/20260422232120_add_expectancy_snapshot_unique/migration.sql`.
 **Verified:** `prisma migrate deploy` applied cleanly, `prisma generate` succeeded, `tsc --noEmit` clean.
 
-### Task 2 — Add weekly aggregation helper
+### Task 2 — Add weekly aggregation helper 🔄 IN PROGRESS (2026-04-24)
 **Build:** Pure function `getWeeklySnapshot(restaurantId, weekStart)` returning per-channel aggregates: orders, grossRevenue, netRevenue, commission, promoSpend, allocatedFoodCost, allocatedOverhead, allocatedPayroll, netProfit. Reads existing tables; no writes, no caching.
 **Files:** new `lib/analytics/weekly-snapshot.ts`; possibly extract shared overhead-allocation logic from `app/api/platforms/summary/route.ts` into `lib/analytics/allocation.ts` if it currently lives inline.
 **Done when:** calling it with a real restaurant + week returns numbers that reconcile within £0.01 to `/api/platforms/summary` output for the same period.
+
+**Decisions locked (2026-04-24):**
+- Week boundary: ISO Monday 00:00:00.000 → Sunday 23:59:59.999, both inclusive.
+- Snapshot splits `allocatedOverhead` (ExpenseEntry only) and `allocatedPayroll` (grossPay + employerNI). `/api/platforms/summary` response shape stays unchanged — it continues to return a merged `allocatedOverhead` that equals the sum of the two snapshot fields.
+- Allocation logic extracted to a shared helper. Summary route refactored onto it — single source of truth, no behaviour change.
+- Verification is a dev-only `scripts/verify-weekly-snapshot.ts` (no Vitest setup in this task).
+- Food cost mirrors the summary route's `grossRevenue × foodCostPct` for reconciliation parity. Modelling concern (food cost applied to VAT portion) recorded in `flags/revisit-food-cost-on-gross-vs-net.md` for later.
+- Payroll filter mirrors the summary route's fully-contained window (`periodStart ≥ weekStart ∧ periodEnd ≤ weekEnd`). Bi-weekly/monthly payrolls will hit zero weeks — flagged as a Task 8 (labour expectancy) investigation.
+
+**Progress (2026-04-24):**
+- ✅ Step 1 — `lib/analytics/allocation.ts`: `computeAllocationTotals` + `allocateAmount` pure functions, verbatim extraction of the BY_ORDERS / BY_REVENUE / BY_TIME logic. `tsc --noEmit` clean.
+- ✅ Step 2 — `app/api/platforms/summary/route.ts` refactored onto the shared helper. 5 insertions, 15 deletions. Response shape identical, numbers mathematically equivalent (mutually exclusive method branches guarantee the `if/else if` → `if/return` transform preserves behaviour). `tsc --noEmit` clean.
+- ⏳ Step 3 — `lib/analytics/weekly-snapshot.ts` (`getWeeklySnapshot` helper) — pending next session.
+- ⏳ Step 4 — `scripts/verify-weekly-snapshot.ts` (reconciliation dev script) — pending next session.
+- ⏳ Step 5 — `flags/revisit-food-cost-on-gross-vs-net.md` — pending next session.
 
 ### Task 3 — Per-platform (channel) expectancy calculator
 **Build:** `recomputeChannelExpectancy(restaurantId, windowWeeks = 8)` that pulls the last N weekly snapshots, computes win rate / avg win / avg loss / expectancy per order for each platform, and upserts rows into `ExpectancySnapshot` with `entityType = PLATFORM`.
