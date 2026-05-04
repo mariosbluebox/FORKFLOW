@@ -70,9 +70,9 @@ Ordered for a walking-skeleton approach: ship a narrow but end-to-end slice (cha
 **Progress (2026-04-24):**
 - ✅ Step 1 — `lib/analytics/allocation.ts`: `computeAllocationTotals` + `allocateAmount` pure functions, verbatim extraction of the BY_ORDERS / BY_REVENUE / BY_TIME logic. `tsc --noEmit` clean.
 - ✅ Step 2 — `app/api/platforms/summary/route.ts` refactored onto the shared helper. 5 insertions, 15 deletions. Response shape identical, numbers mathematically equivalent (mutually exclusive method branches guarantee the `if/else if` → `if/return` transform preserves behaviour). `tsc --noEmit` clean.
-- ⏳ Step 3 — `lib/analytics/weekly-snapshot.ts` (`getWeeklySnapshot` helper) — pending next session.
-- ⏳ Step 4 — `scripts/verify-weekly-snapshot.ts` (reconciliation dev script) — pending next session.
-- ⏳ Step 5 — `flags/revisit-food-cost-on-gross-vs-net.md` — pending next session.
+- ✅ Step 3 — `lib/analytics/weekly-snapshot.ts` (`getWeeklySnapshot` helper) shipped in commit `6ba45a7`.
+- ✅ Step 4 — `scripts/verify-weekly-snapshot.ts` (reconciliation dev script) shipped in commit `fe89713`. Reconciliation is structurally green but trivially zero — meaningful verification needs seeded data, tracked as Issue #13.
+- ✅ Step 5 — Deferred-work issue tracked as GitHub Issue #14 (`flags/` directory was migrated to GitHub Issues in commit `29c1518`).
 
 ### Task 3 — Per-platform (channel) expectancy calculator
 **Build:** `recomputeChannelExpectancy(restaurantId, windowWeeks = 8)` that pulls the last N weekly snapshots, computes win rate / avg win / avg loss / expectancy per order for each platform, and upserts rows into `ExpectancySnapshot` with `entityType = PLATFORM`.
