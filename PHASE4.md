@@ -74,7 +74,7 @@ Ordered for a walking-skeleton approach: ship a narrow but end-to-end slice (cha
 - ✅ Step 4 — `scripts/verify-weekly-snapshot.ts` (reconciliation dev script) shipped in commit `fe89713`. Reconciliation is structurally green but trivially zero — meaningful verification needs seeded data, tracked as Issue #13.
 - ✅ Step 5 — Deferred-work issue tracked as GitHub Issue #14 (`flags/` directory was migrated to GitHub Issues in commit `29c1518`).
 
-### Task 3 — Per-platform (channel) expectancy calculator 🔄 IN PROGRESS (paused 2026-05-05, awaiting closure decision)
+### Task 3 — Per-platform (channel) expectancy calculator ✅ DONE (2026-05-07)
 **Build:** `recomputeChannelExpectancy(restaurantId, windowWeeks = 8)` that pulls the last N weekly snapshots, computes win rate / avg win / avg loss / expectancy per order for each platform, and upserts rows into `ExpectancySnapshot` with `entityType = PLATFORM`.
 **Files:** new `lib/analytics/expectancy.ts`.
 **Done when:** running it for a seeded restaurant produces one `ExpectancySnapshot` row per active platform, and hand-calculating expectancy for one platform from the raw periods matches the stored value.
@@ -84,11 +84,11 @@ Ordered for a walking-skeleton approach: ship a narrow but end-to-end slice (cha
 - Expectancy unit (B1): £ per order, per SPEC2 §8.2 page label. Same per-unit convention will extend to PROMOTION (£/£ promo), EMPLOYEE (£/hr), INGREDIENT (£/£ ingredient) for Tasks 7–9.
 - `periodWeeks` stores the actual sample size, not the requested window (be honest about sample size for the UI).
 
-**Progress (2026-05-05):**
+**Progress (closed 2026-05-07):**
 - ✅ `lib/analytics/expectancy.ts` shipped — pure `computeExpectancy(profitsPerUnit: number[])` + DB-orchestrating `recomputeChannelExpectancy(restaurantId, options)`. Pure / impure split chosen so Tasks 7–9 can reuse the pure function with their own series.
 - ✅ `scripts/verify-channel-expectancy.ts` shipped + `npm run verify:channel-expectancy` script. Cross-checks each stored row against an independent re-derivation from `getWeeklySnapshot`. PASS for all 4 fixture platforms — `winRate`, `avgWin`, `avgLoss`, `expectancy`, `periodWeeks` agree across (independent calc, function return value, persisted DB row) within 1e-6.
-- ⚠️ Integration test is thin: the fixture only seeds 1 week, so every series degenerates to `[positiveValue]` (winRate=1, avgLoss=0, expectancy=avgWin). The mixed-wins/losses, all-loss, and multi-week-averaging branches of `computeExpectancy` are exercised by code inspection only, not by an integration test.
-- ⏳ Awaiting user pick on closure: (1) declare Task 3 done now and file a follow-up issue to extend the fixture seed to multi-week + loss cases (also benefits Tasks 7–9), or (2) extend the seed first and re-verify before claiming Task 3 closed.
+- ⚠️ Integration coverage is thin: the fixture only seeds 1 week, so every series degenerates to `[positiveValue]` (winRate=1, avgLoss=0, expectancy=avgWin). The mixed-wins/losses, all-loss, and multi-week-averaging branches of `computeExpectancy` are exercised by code inspection only.
+- ➡️ Closed via option 1 (2026-05-07): the multi-week fixture extension is shared infrastructure across Tasks 3, 7, 8, 9, so it's tracked as **Issue #15** and will be landed alongside Tasks 7–9 rather than reshaped four times. Fixing it now would not exercise the unbuilt promo/labour/ingredient calculators anyway.
 
 ### Task 4 — Expectancy read API
 **Build:** `GET /api/analytics/expectancy` returns `{ channels: [...], promotions: [], labour: null, ingredients: null }` from the current restaurant's latest snapshots. Plan-gated to PRO or active Free Trial via `lib/feature-gate.ts`. Returns 403 otherwise.
