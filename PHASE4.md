@@ -90,22 +90,28 @@ Ordered for a walking-skeleton approach: ship a narrow but end-to-end slice (cha
 - ⚠️ Integration coverage is thin: the fixture only seeds 1 week, so every series degenerates to `[positiveValue]` (winRate=1, avgLoss=0, expectancy=avgWin). The mixed-wins/losses, all-loss, and multi-week-averaging branches of `computeExpectancy` are exercised by code inspection only.
 - ➡️ Closed via option 1 (2026-05-07): the multi-week fixture extension is shared infrastructure across Tasks 3, 7, 8, 9, so it's tracked as **Issue #15** and will be landed alongside Tasks 7–9 rather than reshaped four times. Fixing it now would not exercise the unbuilt promo/labour/ingredient calculators anyway.
 
-### Task 4 — Expectancy read API
+### Task 4 — Expectancy read API ✅ DONE (2026-05-07, commit `83fc4f1`)
 **Build:** `GET /api/analytics/expectancy` returns `{ channels: [...], promotions: [], labour: null, ingredients: null }` from the current restaurant's latest snapshots. Plan-gated to PRO or active Free Trial via `lib/feature-gate.ts`. Returns 403 otherwise.
 **Files:** new `app/api/analytics/expectancy/route.ts`.
 **Done when:** authed Pro user gets 200 + channels array; Basic user gets 403; unauthed gets 401.
 
-### Task 5 — `/analytics/expectancy` page — channel section only
+**Notes:** `channels` joins `ExpectancySnapshot` rows (entityType=PLATFORM) with the `Platform` table for names via an in-memory Map (no FK exists — `entityId` is polymorphic). `promotions: []`, `labour: null`, `ingredients: null` are hardcoded placeholders; Tasks 7–9 each extend the response when they land. `(unknown)` fallback on the platform name handles snapshots whose platform was deleted after the snapshot was written. Two 401 paths: missing session and session→deleted-restaurant.
+
+### Task 5 — `/analytics/expectancy` page — channel section only ✅ DONE (2026-05-07, commit `d6a2b72`)
 **Build:** Client page matching the "Channel Expectancy (per order)" block in SPEC2 §8.2. One row per platform: name, expectancy £, verdict icon (✅ positive / ❌ negative), colour band. Uses `formatCurrency(amount, restaurant.currency)`. Reuses the shared primitives pattern from other module pages (`INPUT`, `Field`, `Loader`, `Empty`).
 **Files:** new `app/(dashboard)/analytics/expectancy/page.tsx`; possibly a new `app/(dashboard)/analytics/layout.tsx` if you want a shared `/analytics` layout.
 **Done when:** page renders with real data for the logged-in Pro restaurant; empty state shows if no snapshots yet; trial-expired Basic user sees the upgrade gate.
 
-### Task 6 — Sidebar link + plan gate
+**Notes:** Used ✓ / ✗ unicode marks (consistent with the existing platforms page) instead of the spec's emoji ✅ / ❌. `formatCurrency()` defaults to GBP — matches existing pages, since restaurant currency isn't on the session JWT yet (would need a server-shape change to fix app-wide). Plan check decided client-side via `hasFeature` so BASIC users skip the network round-trip and go straight to the upgrade gate. Verified live against the seeded fixture restaurant — all 4 channels rendered with correct numbers (UBER £2.17, DELIVEROO £2.64, JUSTEAT £2.87, WALKIN £5.65). Negative/red branch unverified (single-week fixture is all-wins) — tracked under Issue #15.
+
+### Task 6 — Sidebar link + plan gate ✅ DONE (2026-05-07, commit `21e27ff`)
 **Build:** Add "Expectancy" under an "Analytics" sidebar group, visible only to PRO / trial-active users via `usePlan()`. Link to `/analytics/expectancy`.
 **Files:** `components/Sidebar.tsx` (or wherever nav lives — check `components/`).
 **Done when:** Pro user sees the link and can navigate to it; Basic user doesn't see the link; deep-link attempt by Basic user hits the 403/gate already built in Task 4.
 
-*(End of walking skeleton — at this point Expectancy is shippable as channel-only. Tasks 7–10 extend it.)*
+**Notes:** Created `lib/usePlan.ts` (the client-side feature-gate helper CLAUDE.md references — wraps `useSession` + `hasFeature`, exposes `plan / trialEndsAt / isAdmin / can(feature) / loading`). Refactored the expectancy page off inline `hasFeature` onto `usePlan().can('analytics')` for consistency. Sidebar restructured from a flat list into a section-based config; items declare optional `requires?: Feature` and the sidebar filters out anything the current plan can't access. Replaced the flat `/analytics` link (a 404) with an "ANALYTICS" section heading + "Expectancy" sub-link gated on `'analytics'`. Verified live by flipping the fixture restaurant between FREE_TRIAL and BASIC — link visible on FREE_TRIAL, hidden on BASIC, deep-link falls back to the page-level upgrade gate. Pre-existing sidebar gaps left untouched (Health Score, Platforms also Pro-gated features but currently visible to BASIC users) — out of Task 6's explicit scope, will be tightened when Phase 4 sub-features 2/3 land.
+
+*(End of walking skeleton — Expectancy is shippable as channel-only as of 2026-05-07. Tasks 7–10 extend it.)*
 
 ### Task 7 — Promotion expectancy (per £ promo spend)
 **Build:** Extend `recomputeChannelExpectancy` or add `recomputePromoExpectancy` that computes expectancy per £ spent on each promotion type per platform across the window. Upserts with `entityType = PROMOTION`. Extend the API response and page to surface the "Promotion Expectancy" block.
