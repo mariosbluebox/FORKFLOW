@@ -1,10 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { formatCurrency, formatPercent } from '@/lib/utils'
-import { hasFeature } from '@/lib/feature-gate'
+import { formatCurrency, formatDate, formatPercent } from '@/lib/utils'
+import { usePlan } from '@/lib/usePlan'
 
 interface ChannelRow {
   platformId: string
@@ -75,7 +74,7 @@ function ChannelSection({ channels }: { channels: ChannelRow[] }) {
         </h2>
         {latestCalculated && (
           <span className="text-xs text-gray-400">
-            Last updated {latestCalculated.toLocaleDateString()}
+            Last updated {formatDate(latestCalculated)}
           </span>
         )}
       </div>
@@ -118,16 +117,15 @@ function ChannelSection({ channels }: { channels: ChannelRow[] }) {
 }
 
 export default function ExpectancyPage() {
-  const { data: session, status } = useSession()
+  const plan = usePlan()
   const [data, setData] = useState<ExpectancyResponse | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const user = session?.user
-  const hasAccess = user ? hasFeature(user.plan, 'analytics', user.trialEndsAt) : false
+  const hasAccess = plan.can('analytics')
 
   useEffect(() => {
-    if (status !== 'authenticated' || !hasAccess) {
-      setLoading(false)
+    if (plan.loading || !hasAccess) {
+      if (!plan.loading) setLoading(false)
       return
     }
     let cancelled = false
@@ -137,10 +135,9 @@ export default function ExpectancyPage() {
       .then((j: ExpectancyResponse | null) => { if (!cancelled) setData(j) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [status, hasAccess])
+  }, [plan.loading, hasAccess])
 
-  if (status === 'loading') return <Loader />
-  if (!user) return null
+  if (plan.loading) return <Loader />
 
   return (
     <div className="space-y-6">

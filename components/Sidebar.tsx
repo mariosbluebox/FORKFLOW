@@ -4,22 +4,50 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { cn } from '@/lib/utils'
+import { usePlan } from '@/lib/usePlan'
+import type { Feature } from '@/lib/feature-gate'
 
-const nav = [
-  { href: '/', label: 'Dashboard', icon: '▦' },
-  { href: '/revenue', label: 'Revenue', icon: '£' },
-  { href: '/expenses', label: 'Expenses', icon: '↓' },
-  { href: '/payroll', label: 'Payroll', icon: '👥' },
-  { href: '/inventory', label: 'Inventory', icon: '📦' },
-  { href: '/reports', label: 'Reports', icon: '📊' },
-  { href: '/platforms', label: 'Platforms', icon: '🛵' },
-  { href: '/analytics', label: 'Analytics', icon: '📈' },
-  { href: '/health', label: 'Health Score', icon: '❤' },
-  { href: '/settings/integrations', label: 'Integrations', icon: '⚙' },
+type NavItem = {
+  href: string
+  label: string
+  icon: string
+  requires?: Feature
+}
+
+type NavSection = {
+  heading?: string
+  items: NavItem[]
+}
+
+const sections: NavSection[] = [
+  {
+    items: [
+      { href: '/', label: 'Dashboard', icon: '▦' },
+      { href: '/revenue', label: 'Revenue', icon: '£' },
+      { href: '/expenses', label: 'Expenses', icon: '↓' },
+      { href: '/payroll', label: 'Payroll', icon: '👥' },
+      { href: '/inventory', label: 'Inventory', icon: '📦' },
+      { href: '/reports', label: 'Reports', icon: '📊' },
+      { href: '/platforms', label: 'Platforms', icon: '🛵' },
+    ],
+  },
+  {
+    heading: 'Analytics',
+    items: [
+      { href: '/analytics/expectancy', label: 'Expectancy', icon: '📈', requires: 'analytics' },
+      { href: '/health', label: 'Health Score', icon: '❤' },
+    ],
+  },
+  {
+    items: [
+      { href: '/settings/integrations', label: 'Integrations', icon: '⚙' },
+    ],
+  },
 ]
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const plan = usePlan()
 
   return (
     <aside className="w-56 min-h-screen bg-gray-900 flex flex-col">
@@ -29,23 +57,39 @@ export default function Sidebar() {
         </span>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-0.5">
-        {nav.map(({ href, label, icon }) => {
-          const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
+      <nav className="flex-1 px-3 py-4 space-y-3">
+        {sections.map((section, sIdx) => {
+          const visibleItems = section.items.filter(
+            (item) => !item.requires || plan.can(item.requires)
+          )
+          if (visibleItems.length === 0) return null
+
           return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
-                active
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800',
+            <div key={sIdx} className="space-y-0.5">
+              {section.heading && (
+                <p className="px-3 pt-1 pb-1 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                  {section.heading}
+                </p>
               )}
-            >
-              <span className="w-4 text-center text-xs">{icon}</span>
-              {label}
-            </Link>
+              {visibleItems.map(({ href, label, icon }) => {
+                const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={cn(
+                      'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
+                      active
+                        ? 'bg-indigo-600 text-white'
+                        : 'text-gray-400 hover:text-white hover:bg-gray-800',
+                    )}
+                  >
+                    <span className="w-4 text-center text-xs">{icon}</span>
+                    {label}
+                  </Link>
+                )
+              })}
+            </div>
           )
         })}
       </nav>
