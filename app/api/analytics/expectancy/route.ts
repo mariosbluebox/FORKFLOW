@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionRestaurantId, unauthorized } from '@/lib/session'
 import { hasFeature } from '@/lib/feature-gate'
+import { decodePromoEntityId } from '@/lib/analytics/expectancy'
 
 export async function GET() {
   const restaurantId = await getSessionRestaurantId()
@@ -17,9 +18,12 @@ export async function GET() {
     return NextResponse.json({ error: 'Upgrade required' }, { status: 403 })
   }
 
-  const [snapshots, platforms] = await Promise.all([
+  const [platformSnapshots, promoSnapshots, platforms] = await Promise.all([
     db.expectancySnapshot.findMany({
       where: { restaurantId, entityType: 'PLATFORM' },
+    }),
+    db.expectancySnapshot.findMany({
+      where: { restaurantId, entityType: 'PROMOTION' },
     }),
     db.platform.findMany({
       where: { restaurantId },
@@ -29,7 +33,7 @@ export async function GET() {
 
   const platformNameById = new Map(platforms.map((p) => [p.id, p.name]))
 
-  const channels = snapshots
+  const channels = platformSnapshots
     .map((s) => ({
       platformId: s.entityId,
       platformName: platformNameById.get(s.entityId) ?? '(unknown)',
@@ -42,9 +46,30 @@ export async function GET() {
     }))
     .sort((a, b) => a.platformName.localeCompare(b.platformName))
 
+  const promotions = promoSnapshots
+    .map((s) => {
+      const { platformId, promotionType } = decodePromoEntityId(s.entityId)
+      return {
+        platformId,
+        platformName: platformNameById.get(platformId) ?? '(unknown)',
+        promotionType,
+        expectancy: s.expectancy,
+        winRate: s.winRate,
+        avgWin: s.avgWin,
+        avgLoss: s.avgLoss,
+        periodWeeks: s.periodWeeks,
+        calculatedAt: s.calculatedAt,
+      }
+    })
+    .sort(
+      (a, b) =>
+        a.platformName.localeCompare(b.platformName) ||
+        a.promotionType.localeCompare(b.promotionType)
+    )
+
   return NextResponse.json({
     channels,
-    promotions: [],
+    promotions,
     labour: null,
     ingredients: null,
   })
