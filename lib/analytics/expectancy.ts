@@ -135,3 +135,179 @@ export async function recomputeChannelExpectancy(
 
   return results
 }
+
+// ─── Promotion expectancy ────────────────────────────────────────────────────
+
+export type PromoExpectancyRow = ExpectancyResult & {
+  platformId: string
+  platformName: string
+  promotionType: string
+}
+
+// First `:` splits platformId from promotionType. CUIDs never contain `:`,
+// promotionType is free-form so we use a forward search.
+export const PROMO_ENTITY_SEPARATOR = ':'
+
+export function encodePromoEntityId(platformId: string, promotionType: string): string {
+  return `${platformId}${PROMO_ENTITY_SEPARATOR}${promotionType}`
+}
+
+export function decodePromoEntityId(entityId: string): { platformId: string; promotionType: string } {
+  const idx = entityId.indexOf(PROMO_ENTITY_SEPARATOR)
+  if (idx === -1) return { platformId: entityId, promotionType: '' }
+  return {
+    platformId: entityId.slice(0, idx),
+    promotionType: entityId.slice(idx + PROMO_ENTITY_SEPARATOR.length),
+  }
+}
+
+// Per-week per-(platform, promotionType) data point uses the platform's
+// £/£ promo for that week. Without per-promo order/revenue attribution,
+// this is a co-occurrence signal: "during weeks this promo was running,
+// the platform earned £X per £ of total promo spend." Two promo types on
+// the same platform-week therefore share the same data point — they only
+// diverge across weeks where they appear in different combinations.
+export async function recomputePromoExpectancy(
+  restaurantId: string,
+  options: RecomputeChannelExpectancyOptions = {}
+): Promise<PromoExpectancyRow[]> {
+  const windowWeeks = options.windowWeeks ?? DEFAULT_WINDOW_WEEKS
+  const anchor = isoWeekStart(options.anchorDate ?? new Date())
+
+  const weekStarts: Date[] = []
+  for (let i = 0; i < windowWeeks; i++) {
+    const d = new Date(anchor)
+    d.setUTCDate(d.getUTCDate() - 7 * i)
+    weekStarts.push(d)
+  }
+
+  const weekEndOf = (ws: Date): Date => {
+    const e = new Date(ws)
+    e.setUTCDate(e.getUTCDate() + 6)
+    e.setUTCHours(23, 59, 59, 999)
+    return e
+  }
+
+  const [snapshots, promoChargesByWeek] = await Promise.all([
+    Promise.all(weekStarts.map((ws) => getWeeklySnapshot(restaurantId, ws))),
+    Promise.all(
+      weekStarts.map((ws) =>
+        db.promotionCharge.findMany({
+          where: {
+            restaurantId,
+            periodStart: { gte: ws },
+            periodEnd: { lte: weekEndOf(ws) },
+          },
+          select: {
+            platformId: true,
+            promotionType: true,
+            chargeAmount: true,
+          },
+        })
+      )
+    ),
+  ])
+
+  const buckets = new Map<
+    string,
+    {
+      platformId: string
+      platformName: string
+      promotionType: string
+      series: number[]
+    }
+  >()
+
+  for (let i = 0; i < weekStarts.length; i++) {
+    const snap = snapshots[i]
+    const promos = promoChargesByWeek[i]
+    if (promos.length === 0) continue
+
+    const weekChargesByKey = new Map<
+      string,
+      { platformId: string; promotionType: string; chargeSum: number }
+    >()
+    for (const p of promos) {
+      const k = encodePromoEntityId(p.platformId, p.promotionType)
+      const existing = weekChargesByKey.get(k)
+      if (existing) existing.chargeSum += p.chargeAmount
+      else
+        weekChargesByKey.set(k, {
+          platformId: p.platformId,
+          promotionType: p.promotionType,
+          chargeSum: p.chargeAmount,
+        })
+    }
+
+    const channelByPlatform = new Map(
+      snap.channels.map((c) => [c.platformId, c])
+    )
+
+    for (const [k, w] of weekChargesByKey) {
+      if (w.chargeSum === 0) continue
+      const channel = channelByPlatform.get(w.platformId)
+      if (!channel || channel.promoSpend === 0) continue
+
+      const profitPerPromoPound = channel.netProfit / channel.promoSpend
+
+      let bucket = buckets.get(k)
+      if (!bucket) {
+        bucket = {
+          platformId: w.platformId,
+          platformName: channel.platformName,
+          promotionType: w.promotionType,
+          series: [],
+        }
+        buckets.set(k, bucket)
+      }
+      bucket.series.push(profitPerPromoPound)
+    }
+  }
+
+  const PROMOTION: ExpectancyEntityType = 'PROMOTION'
+  const results: PromoExpectancyRow[] = []
+
+  for (const [, b] of buckets) {
+    const r = computeExpectancy(b.series)
+    if (r.dataPoints === 0) continue
+
+    const entityId = encodePromoEntityId(b.platformId, b.promotionType)
+
+    await db.expectancySnapshot.upsert({
+      where: {
+        restaurantId_entityType_entityId: {
+          restaurantId,
+          entityType: PROMOTION,
+          entityId,
+        },
+      },
+      create: {
+        restaurantId,
+        entityType: PROMOTION,
+        entityId,
+        periodWeeks: r.dataPoints,
+        winRate: r.winRate,
+        avgWin: r.avgWin,
+        avgLoss: r.avgLoss,
+        expectancy: r.expectancy,
+      },
+      update: {
+        periodWeeks: r.dataPoints,
+        winRate: r.winRate,
+        avgWin: r.avgWin,
+        avgLoss: r.avgLoss,
+        expectancy: r.expectancy,
+        calculatedAt: new Date(),
+      },
+    })
+
+    results.push({
+      platformId: b.platformId,
+      platformName: b.platformName,
+      promotionType: b.promotionType,
+      ...r,
+    })
+  }
+
+  return results
+}
