@@ -49,7 +49,7 @@ function UpgradeGate() {
       <div className="text-3xl mb-3">🔒</div>
       <h2 className="text-xl font-semibold text-gray-900 mb-2">Expectancy is a Pro feature</h2>
       <p className="text-sm text-gray-600 mb-5 max-w-md mx-auto">
-        See net profit per order on every channel — and know which platforms are making money and which aren't.
+        See net profit per order on every channel — and know which platforms are making money and which aren&apos;t.
       </p>
       <Link
         href="/settings/billing"
