@@ -10,6 +10,8 @@ jobs:
   ci:
     name: Type check, Lint & Build
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
 
     steps:
       - uses: actions/checkout@v4
@@ -24,8 +26,6 @@ jobs:
 
       - name: Generate Prisma client
         run: npx prisma generate
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Type check
         run: npx tsc --noEmit
@@ -36,7 +36,6 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           NEXTAUTH_SECRET: ci-secret-placeholder
           NEXTAUTH_URL: http://localhost:3000
           STRIPE_SECRET_KEY: sk_test_placeholder
@@ -56,10 +55,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Docker form instead of gitleaks-action@v2: the action calls the GitHub
+      # API to list PR commits, which 403s on Dependabot/fork PRs (read-only token).
       - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1 detect --source=/repo --redact --no-banner
 
   audit:
     name: npm audit (high+ vulnerabilities)
