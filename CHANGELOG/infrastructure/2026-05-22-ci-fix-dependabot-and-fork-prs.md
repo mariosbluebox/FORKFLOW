@@ -19,13 +19,7 @@ set up in Phase 1.
 `.github/workflows/ci.yml`:
 
 1. **`DATABASE_URL` is now a literal placeholder** (`postgresql://ci:ci@localhost:5432/ci`) instead of `${{ secrets.DATABASE_URL }}`. The build doesn't connect to a database — Prisma only needs the URL string to *exist* and parse as a valid connection string. Sourcing it from a secret was unnecessary and broke any PR that doesn't get secret access (Dependabot, forks).
-2. **Gitleaks now runs via direct docker invocation** instead of `gitleaks/gitleaks-action@v2`. The action calls `GET /repos/.../pulls/{n}/commits` to scope the scan, which returns 403 on Dependabot PRs (their `GITHUB_TOKEN` is read-only by GitHub policy). The docker form scans the checked-out filesystem and full history — no API calls, no permissions issue.
-
-## How it works
-
-**DATABASE_URL placeholder:** Set as a literal value in both the `Generate Prisma client` step and the `Build` step. Functionally identical to a real URL for build purposes — only matters at runtime. Reduces the secret blast radius too: there's no longer a reason for `secrets.DATABASE_URL` to exist on CI at all (it can be cleaned up separately).
-
-**Gitleaks docker:** Equivalent to running `gitleaks detect --source=. --redact --no-banner` locally. Pulls `zricethezav/gitleaks:latest` (the official image), mounts the workspace, scans, exits 0 on clean / 1 on findings. GitHub Actions reads the exit code to set the check status. No PR comments (the action's only extra feature) — but the check status is enough.
+2. **Gitleaks now runs via direct docker invocation** (pinned to `zricethezav/gitleaks:v8.30.1`) instead of `gitleaks/gitleaks-action@v2`. The action calls `GET /repos/.../pulls/{n}/commits` to scope the scan, which returns 403 on Dependabot PRs (their `GITHUB_TOKEN` is read-only by GitHub policy). The docker form scans the checked-out filesystem and full history — no API calls, no permissions issue. Pinning a version (not `:latest`) keeps CI reproducible and avoids the supply-chain risk of an upstream image bump silently changing behaviour.
 
 ## How to verify
 
@@ -34,11 +28,6 @@ This PR itself is the test:
 - If `gitleaks` goes green on this PR, the docker swap works.
 
 After merge, PR #22 (next bump) should be re-runnable and pass.
-
-## Trade-offs / what we lose
-
-- **gitleaks-action@v2 PR comments:** The action would auto-comment on a PR with finding details. We lose that. The job-failure check status still surfaces findings; you click into the run logs to see what gitleaks reported. Acceptable trade for working on all PR sources.
-- **Pulling the docker image adds ~5–10s per run.** Negligible vs. the value of CI actually working.
 
 ## Follow-ups
 
