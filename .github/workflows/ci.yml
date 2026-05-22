@@ -25,7 +25,7 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
 
       - name: Type check
         run: npx tsc --noEmit
@@ -36,7 +36,7 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
           NEXTAUTH_SECRET: ci-secret-placeholder
           NEXTAUTH_URL: http://localhost:3000
           STRIPE_SECRET_KEY: sk_test_placeholder
@@ -56,10 +56,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Docker invocation rather than gitleaks-action@v2 because the action
+      # calls the GitHub API to list PR commits, which fails with a 403 on
+      # Dependabot PRs and fork PRs (their GITHUB_TOKEN is read-only).
+      # The docker form does a pure filesystem/history scan — no API access
+      # needed. Exit 1 on findings is what fails the job.
       - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect --source=/repo --redact --no-banner
 
   audit:
     name: npm audit (high+ vulnerabilities)
