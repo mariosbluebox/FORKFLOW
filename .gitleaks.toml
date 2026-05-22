@@ -1,0 +1,17 @@
+# Gitleaks config — extends the default ruleset with project-specific allowlists.
+# Picked up automatically by `gitleaks detect --source=<repo>`.
+
+[extend]
+useDefault = true
+
+# Allowlist obvious placeholder values used in CI env, docs, and tests.
+# Gitleaks's default rules are pattern-based and can't tell that
+# "sk_test_placeholder" isn't a real Stripe key. Listed regexes match the
+# whole secret value; anything matching is dropped from findings.
+[allowlist]
+description = "Project-wide placeholder strings (CI env, docs, examples)"
+regexes = [
+    '''sk_(test|live)_placeholder''',
+    '''whsec_placeholder''',
+    '''price_placeholder''',
+]
