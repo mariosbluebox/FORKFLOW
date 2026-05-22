@@ -10,7 +10,7 @@ for what `/security-review` checks before every push.
 > that links back to the section it modifies. The CHANGELOG is the history;
 > this file is the current state.
 
-**Last reviewed:** 2026-05-22 — after Phase 1 (pre-commit + CI gates), Postmark fail-closed/timing-safe fix, and Phase 2 (`SECURITY-CHECKLIST.md` drafted).
+**Last reviewed:** 2026-05-22 — after Phase 1 (pre-commit + CI gates), Postmark fail-closed/timing-safe fix, Phase 2 (`SECURITY-CHECKLIST.md` drafted), CI workflow fix for Dependabot/fork PRs, `.gitleaks.toml` allowlist, and the dependency-bump cleanup that closed 25 of 27 Dependabot advisories.
 
 ---
 
@@ -108,10 +108,13 @@ catch (Phase 2).
 |---|---|
 | Secrets only in `.env` (gitignored) + Vercel env vars | Verified |
 | Pre-commit: `secretlint` (recommended preset) on every staged file | Verified — Phase 1 |
-| CI: `gitleaks` full-history scan on every push/PR | Verified — Phase 1 |
+| CI: `gitleaks` full-history scan on every push/PR, run via pinned docker image `zricethezav/gitleaks:v8.30.1` | Verified — Phase 1 (workflow fixed for Dependabot/fork PRs) |
+| `.gitleaks.toml` allowlist for known placeholder strings (`sk_test_placeholder`, `whsec_placeholder`, `price_placeholder`) — neutralizes false positives without weakening real-secret detection | Verified |
 | CI: `npm audit --audit-level=high --omit=dev` blocks high+ prod vulns | Verified — Phase 1 |
 | Dependabot watches for security updates | Verified — pre-existing |
 | `eslint-plugin-security` blocks `eval`, `child_process`, weak randomness, bidi chars, etc. | Verified — Phase 1 |
+
+**Why multiple scanners:** `npm audit` (npm's advisory DB) and Dependabot (GitHub's GHSA DB) overlap but are not equivalent. We observed on 2026-05-22 that GHSA had 12 high `next` advisories while `npm audit` reported 0 — the same advisories landed in `npm audit` later the same day. Treat `npm audit` as a fast CI gate, Dependabot as the broader source of truth, and check the Dependabot dashboard before declaring a clean bill of health.
 
 ### 3.6 Transport & platform
 
@@ -173,10 +176,10 @@ dated `CHANGELOG/security/` entry when resolved.
 - **Fix:** Phase 3 Prisma middleware.
 - **Mitigation today:** `/security-review` with the Phase 2 checklist on every PR.
 
-### 6.2 Moderate-severity prod-dep vulnerabilities
-- **Where:** `postcss` (via `next`), `uuid` (via `next-auth`)
-- **Current:** 4 moderate-severity advisories; only `--force` fixes available which would break us
-- **Fix:** Revisit when upstream ships compatible releases. CI does not block on moderate.
+### 6.2 Residual medium-severity advisories
+- **Where:** Dependabot dashboard. As of 2026-05-22, 2 medium-severity advisories remain (likely `postcss` via `next`, `uuid` via `next-auth` — both have only `--force` fixes that would break the stack).
+- **History:** Started the day at 27 advisories (12 high, 13 moderate, 2 low). Cleared 25 by merging Dependabot bumps for `next` 15.5.18, `flatted` 3.4.2, picomatch (multi-bump), and `brace-expansion` 5.0.6.
+- **Fix:** Revisit when upstream ships compatible releases. CI does not block on medium severity; Dependabot dashboard is the authoritative view.
 - **Priority:** Low (monitored, not blocking).
 
 ---
@@ -192,6 +195,9 @@ entries shouldn't be edited (they're a record of *why* at the time).
 - **2026-05-22 — `eslint-plugin-security`: most rules error, a few warn, `detect-object-injection` off.** That rule fires on every dynamic property access in TS — would generate hundreds of false positives and we'd disable it within a week. Better to turn it off explicitly than have everyone learn to ignore the noise.
 - **2026-05-22 — Rate limiting deferred to Phase 3.** Important but not blocking pre-launch. **Re-evaluate before opening signup to the public** — auth and inbound email endpoints are abuse vectors that don't need real traffic to be exploited.
 - **2026-05-22 — Two-doc model: living `SECURITY.md` + append-only `CHANGELOG/security/`.** A single folder of dated files can't answer "what's our current state?" without reading everything. Splitting current-state from history is the only way both stay honest.
+- **2026-05-22 — Gitleaks runs via pinned docker image, not the `gitleaks-action@v2` GitHub Action.** The action calls the GitHub API to list PR commits and 403s on Dependabot/fork PRs (read-only token). Docker form works in both contexts (CI and local laptop) with the same command, gives content-addressed reproducibility, and avoids a supply-chain risk a re-tagged Action release would carry. Pinning a specific version (`v8.30.1`) instead of `:latest` makes the image cacheable and tamper-evident.
+- **2026-05-22 — `.gitleaks.toml` allowlist over per-finding `.gitleaksignore`.** Placeholder strings (`sk_test_placeholder`, etc.) are pattern-based, not commit-specific. A regex allowlist won't need updating when the same placeholder moves files or appears in a new doc; a fingerprint ignore would. Risk that an attacker would name a real key `placeholder` is essentially zero.
+- **2026-05-22 — CI uses literal placeholder env vars, not `secrets.DATABASE_URL`.** The build doesn't connect to a real database; Prisma just needs the URL string to *exist* and parse. Sourcing it from a secret broke every PR without secret access (Dependabot, forks) and concentrated blast radius without benefit. The whole point of CI here is to verify the build compiles — anything that needs a real DB belongs in a deploy workflow.
 
 ---
 
