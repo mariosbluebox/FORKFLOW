@@ -2,8 +2,20 @@
 // Always returns 200 so Postmark doesn't retry on auth/not-found failures
 
 import { NextRequest, NextResponse } from 'next/server'
+import { timingSafeEqual } from 'node:crypto'
 import { db } from '@/lib/db'
 import { detectPlatformFromEmail, extractEmail, processInboundCSV } from '@/lib/inbound'
+
+// Constant-time token comparison. Prevents byte-by-byte timing-oracle attacks
+// on the shared secret. Length check is a pre-filter — timingSafeEqual throws
+// on differing buffer lengths.
+function tokensMatch(provided: string | null, expected: string): boolean {
+  if (!provided) return false
+  const providedBuf = Buffer.from(provided)
+  const expectedBuf = Buffer.from(expected)
+  if (providedBuf.length !== expectedBuf.length) return false
+  return timingSafeEqual(providedBuf, expectedBuf)
+}
 
 interface PostmarkAttachment {
   Name: string
@@ -20,13 +32,21 @@ interface PostmarkPayload {
 }
 
 export async function POST(req: NextRequest) {
-  // Verify shared secret (checked via header or query param)
+  // Verify shared secret (fail-closed: reject if env var missing OR token mismatch).
+  // Response stays 200 so Postmark doesn't trigger retry storms on bad senders.
+  const expectedToken = process.env.POSTMARK_INBOUND_WEBHOOK_TOKEN
+  if (!expectedToken) {
+    console.error(
+      '[postmark-inbound] POSTMARK_INBOUND_WEBHOOK_TOKEN is not set — rejecting request',
+    )
+    return NextResponse.json({ ok: false, reason: 'server misconfigured' })
+  }
+
   const token =
     req.headers.get('x-postmark-token') ??
     new URL(req.url).searchParams.get('token')
 
-  if (process.env.POSTMARK_INBOUND_WEBHOOK_TOKEN && token !== process.env.POSTMARK_INBOUND_WEBHOOK_TOKEN) {
-    // Return 200 to prevent Postmark retry storms
+  if (!tokensMatch(token, expectedToken)) {
     return NextResponse.json({ ok: false, reason: 'invalid token' })
   }
 
