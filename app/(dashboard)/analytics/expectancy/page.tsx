@@ -37,11 +37,20 @@ interface LabourRow {
   calculatedAt: string
 }
 
+interface IngredientRow {
+  expectancy: number
+  winRate: number
+  avgWin: number
+  avgLoss: number
+  periodWeeks: number
+  calculatedAt: string
+}
+
 interface ExpectancyResponse {
   channels: ChannelRow[]
   promotions: PromotionRow[]
   labour: LabourRow | null
-  ingredients: unknown
+  ingredients: IngredientRow | null
 }
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -181,6 +190,50 @@ function LabourSection({ labour }: { labour: LabourRow | null }) {
   )
 }
 
+function IngredientSection({ ingredients }: { ingredients: IngredientRow | null }) {
+  return (
+    <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <h2 className="font-semibold text-gray-900">
+          Ingredient Expectancy <span className="text-gray-400 font-normal">(per £ ingredient cost)</span>
+        </h2>
+        {ingredients && (
+          <span className="text-xs text-gray-400">
+            Last updated {formatDate(ingredients.calculatedAt)}
+          </span>
+        )}
+      </div>
+      {!ingredients ? (
+        <Empty text="No ingredient expectancy yet. Log stock movements (OUT and WASTAGE) for at least one week, then wait for the weekly recalc." />
+      ) : (
+        <ul className="divide-y divide-gray-50">
+          <li className="px-6 py-5 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className={`inline-flex w-10 h-10 items-center justify-center rounded-lg text-lg font-bold ${ingredients.expectancy > 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                {ingredients.expectancy > 0 ? '✓' : '✗'}
+              </span>
+              <div>
+                <p className="font-medium text-gray-900">All ingredients (aggregate)</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Win rate {formatPercent(ingredients.winRate * 100, 0)} · based on {ingredients.periodWeeks} {ingredients.periodWeeks === 1 ? 'week' : 'weeks'}
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className={`text-2xl font-bold ${ingredients.expectancy > 0 ? 'text-green-700' : 'text-red-700'}`}>
+                {ingredients.expectancy > 0 ? '+' : ''}{formatCurrency(ingredients.expectancy)}
+              </p>
+              <p className={`text-xs font-medium uppercase tracking-wide ${ingredients.expectancy > 0 ? 'text-green-700' : 'text-red-700'}`}>
+                {ingredients.expectancy > 0 ? 'Positive' : 'Negative'}
+              </p>
+            </div>
+          </li>
+        </ul>
+      )}
+    </section>
+  )
+}
+
 function PromotionSection({ promotions }: { promotions: PromotionRow[] }) {
   const latestCalculated = promotions.length > 0
     ? new Date(Math.max(...promotions.map((p) => new Date(p.calculatedAt).getTime())))
@@ -267,7 +320,7 @@ export default function ExpectancyPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Expectancy</h1>
-        <p className="text-sm text-gray-500 mt-1">Net profit per order, return on promo spend, and labour productivity</p>
+        <p className="text-sm text-gray-500 mt-1">Net profit per order, return on promo spend, labour productivity, and ingredient efficiency</p>
       </div>
 
       {!hasAccess ? (
@@ -279,6 +332,7 @@ export default function ExpectancyPage() {
           <ChannelSection channels={data?.channels ?? []} />
           <PromotionSection promotions={data?.promotions ?? []} />
           <LabourSection labour={data?.labour ?? null} />
+          <IngredientSection ingredients={data?.ingredients ?? null} />
         </>
       )}
     </div>
