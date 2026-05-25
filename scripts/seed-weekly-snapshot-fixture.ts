@@ -140,6 +140,17 @@ const PAYROLL_PER_WEEK = {
   employerNI: 32.84,
 }
 
+// Per-week ingredient consumption — drives Task 9 ingredient expectancy.
+// Chosen so the £/£ series across the 3 weeks gives mixed wins/losses:
+// Week 0 totalCost £1000  → +£175.36 / £1000 = +0.17536  (win)
+// Week 1 totalCost £1200  → −£145.14 / £1200 = −0.12095  (loss)
+// Week 2 totalCost £900   → +£519.96 / £900  = +0.57773  (win)
+const INGREDIENT_PER_WEEK: Array<{ out: number; wastage: number }> = [
+  { out: 950,  wastage: 50 },
+  { out: 1150, wastage: 50 },
+  { out: 870,  wastage: 30 },
+]
+
 const prisma = new PrismaClient()
 
 async function main() {
@@ -311,12 +322,56 @@ async function main() {
     })
   }
 
+  // Stock movements — one InventoryItem, OUT and WASTAGE per week. Cost is
+  // carried on each movement row (totalCost), so InventoryItem.costPerUnit
+  // is only there to satisfy the schema. Wipe-and-reinsert is safe because
+  // nothing else writes to this restaurant.
+  await prisma.stockMovement.deleteMany({ where: { restaurantId: restaurant.id } })
+  await prisma.inventoryItem.deleteMany({ where: { restaurantId: restaurant.id } })
+  const ingredient = await prisma.inventoryItem.create({
+    data: {
+      restaurantId: restaurant.id,
+      name: 'Fixture Ingredient',
+      unit: 'kg',
+      currentStock: 0,
+      reorderLevel: 0,
+      costPerUnit: 1,
+    },
+  })
+  for (let i = 0; i < WEEKS.length; i++) {
+    const w = WEEKS[i]
+    const usage = INGREDIENT_PER_WEEK[i]
+    await prisma.stockMovement.create({
+      data: {
+        restaurantId: restaurant.id,
+        inventoryItemId: ingredient.id,
+        type: 'OUT',
+        quantity: usage.out,
+        costPerUnit: 1,
+        totalCost: usage.out,
+        date: w.midweek,
+      },
+    })
+    await prisma.stockMovement.create({
+      data: {
+        restaurantId: restaurant.id,
+        inventoryItemId: ingredient.id,
+        type: 'WASTAGE',
+        quantity: usage.wastage,
+        costPerUnit: 1,
+        totalCost: usage.wastage,
+        date: w.midweek,
+      },
+    })
+  }
+
   console.log('')
   console.log('Done. Verify with:')
   console.log(`  npm run verify:weekly-snapshot -- ${restaurant.id} 2026-04-13`)
   console.log(`  npm run verify:weekly-snapshot -- ${restaurant.id} 2026-04-06`)
   console.log(`  npm run verify:weekly-snapshot -- ${restaurant.id} 2026-03-30`)
   console.log(`  npm run verify:channel-expectancy -- ${restaurant.id} 2026-04-13 3`)
+  console.log(`  npm run verify:ingredient-expectancy -- ${restaurant.id} 2026-04-13 3`)
 }
 
 main()
