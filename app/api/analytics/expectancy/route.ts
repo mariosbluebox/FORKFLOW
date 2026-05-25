@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionRestaurantId, unauthorized } from '@/lib/session'
 import { hasFeature } from '@/lib/feature-gate'
-import { decodePromoEntityId } from '@/lib/analytics/expectancy'
+import { decodePromoEntityId, LABOUR_AGGREGATE_ID } from '@/lib/analytics/expectancy'
 
 export async function GET() {
   const restaurantId = await getSessionRestaurantId()
@@ -18,12 +18,15 @@ export async function GET() {
     return NextResponse.json({ error: 'Upgrade required' }, { status: 403 })
   }
 
-  const [platformSnapshots, promoSnapshots, platforms] = await Promise.all([
+  const [platformSnapshots, promoSnapshots, labourSnapshot, platforms] = await Promise.all([
     db.expectancySnapshot.findMany({
       where: { restaurantId, entityType: 'PLATFORM' },
     }),
     db.expectancySnapshot.findMany({
       where: { restaurantId, entityType: 'PROMOTION' },
+    }),
+    db.expectancySnapshot.findFirst({
+      where: { restaurantId, entityType: 'EMPLOYEE', entityId: LABOUR_AGGREGATE_ID },
     }),
     db.platform.findMany({
       where: { restaurantId },
@@ -70,7 +73,16 @@ export async function GET() {
   return NextResponse.json({
     channels,
     promotions,
-    labour: null,
+    labour: labourSnapshot
+      ? {
+          expectancy: labourSnapshot.expectancy,
+          winRate: labourSnapshot.winRate,
+          avgWin: labourSnapshot.avgWin,
+          avgLoss: labourSnapshot.avgLoss,
+          periodWeeks: labourSnapshot.periodWeeks,
+          calculatedAt: labourSnapshot.calculatedAt,
+        }
+      : null,
     ingredients: null,
   })
 }
