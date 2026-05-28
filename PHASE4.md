@@ -113,20 +113,26 @@ Ordered for a walking-skeleton approach: ship a narrow but end-to-end slice (cha
 
 *(End of walking skeleton — Expectancy is shippable as channel-only as of 2026-05-07. Tasks 7–10 extend it.)*
 
-### Task 7 — Promotion expectancy (per £ promo spend)
+### Task 7 — Promotion expectancy (per £ promo spend) ✅ DONE (2026-05-15, commit `b5e286a`)
 **Build:** Extend `recomputeChannelExpectancy` or add `recomputePromoExpectancy` that computes expectancy per £ spent on each promotion type per platform across the window. Upserts with `entityType = PROMOTION`. Extend the API response and page to surface the "Promotion Expectancy" block.
 **Files:** `lib/analytics/expectancy.ts`, `app/api/analytics/expectancy/route.ts`, `app/(dashboard)/analytics/expectancy/page.tsx`.
 **Done when:** a restaurant with ≥2 weeks of promo charges shows promotion expectancy on the page and it reconciles to a manual calc.
 
-### Task 8 — Labour expectancy (per hour paid)
+**Notes:** Added `recomputePromoExpectancy` — groups `PlatformPeriod.promotionCharge` by platform across the window, computes £/£-promo-spent expectancy, upserts with `entityType = PROMOTION`. API extended to return `promotions` array (was hardcoded `[]`). Page extended with "Promotion Expectancy (per £ promo spend)" section, one row per platform with expectancy + verdict. Issue #15 multi-week fixture landed in `be532ef` immediately before, giving the verifier real mixed-win/loss data. Verified live — 6 promotion snapshot rows persisted, page renders correctly.
+
+### Task 8 — Labour expectancy (per hour paid) ✅ DONE (2026-05-25, PR #34, commit `192fb7d`)
 **Build:** `recomputeLabourExpectancy` — total net profit / total paid hours across the window, stored once per restaurant (`entityType = EMPLOYEE`, `entityId = 'AGGREGATE'` or similar). Surface in the page.
 **Files:** `lib/analytics/expectancy.ts`, plus the API + page files.
 **Done when:** labour block appears on the page with a sane £/hr value; a restaurant with no payroll entries shows "—" instead of dividing by zero.
 
-### Task 9 — Ingredient expectancy (per £ on ingredients)
+**Notes:** `recomputeLabourExpectancy` uses `entityId = 'AGGREGATE'` (single row per restaurant). Paid hours sourced from `PayrollEntry.hoursWorked` summed across the window. Zero-hours guard returns early and skips upsert so the UI correctly shows "—". API response extended — `labour` field goes from `null` to a single snapshot object. Page "Labour Expectancy (per hour)" section added. Verified against fixture — £/hr value sane, zero-payroll path confirmed. Bi-weekly/monthly payroll gap (Issue #16) deferred as previously planned.
+
+### Task 9 — Ingredient expectancy (per £ on ingredients) ✅ DONE (2026-05-25, PR #34, commit `d779c80`)
 **Build:** `recomputeIngredientExpectancy` — gross profit / total ingredient-category expense across the window. Single restaurant-level figure (see assumption #3). Surface in the page.
 **Files:** same three.
 **Done when:** ingredient block appears with a £/£ ratio; restaurants with no ingredient-category expenses show "—".
+
+**Notes:** `recomputeIngredientExpectancy` uses `entityId = 'AGGREGATE'`. Ingredient spend sourced from `ExpenseEntry` rows where `category = 'INGREDIENTS'` summed across the window. Zero-spend guard skips upsert. API `ingredients` field goes from `null` to a single snapshot object. Page "Ingredient Expectancy (per £ on ingredients)" section added. Fixture seeded one `InventoryItem` + `OUT`/`WASTAGE` movements; verifier (`verify:ingredient-expectancy`) passes. PR #34 contains both Task 8 and Task 9 commits — merging it lands both.
 
 ### Task 10 — Weekly recalc cron
 **Build:** `GET /api/cron/analytics-recalc` — iterates every active PRO restaurant (and trial-active restaurants), calls all four `recompute*` functions. Protected with `CRON_SECRET` header. Register in `vercel.json` to run weekly (Monday, after `/api/cron/import-check` has run so the week's imports are in).
