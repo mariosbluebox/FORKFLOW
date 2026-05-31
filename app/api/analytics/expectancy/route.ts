@@ -2,7 +2,11 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionRestaurantId, unauthorized } from '@/lib/session'
 import { hasFeature } from '@/lib/feature-gate'
-import { decodePromoEntityId } from '@/lib/analytics/expectancy'
+import {
+  decodePromoEntityId,
+  LABOUR_AGGREGATE_ID,
+  INGREDIENT_AGGREGATE_ID,
+} from '@/lib/analytics/expectancy'
 
 export async function GET() {
   const restaurantId = await getSessionRestaurantId()
@@ -18,18 +22,29 @@ export async function GET() {
     return NextResponse.json({ error: 'Upgrade required' }, { status: 403 })
   }
 
-  const [platformSnapshots, promoSnapshots, platforms] = await Promise.all([
-    db.expectancySnapshot.findMany({
-      where: { restaurantId, entityType: 'PLATFORM' },
-    }),
-    db.expectancySnapshot.findMany({
-      where: { restaurantId, entityType: 'PROMOTION' },
-    }),
-    db.platform.findMany({
-      where: { restaurantId },
-      select: { id: true, name: true },
-    }),
-  ])
+  const [platformSnapshots, promoSnapshots, labourSnapshot, ingredientSnapshot, platforms] =
+    await Promise.all([
+      db.expectancySnapshot.findMany({
+        where: { restaurantId, entityType: 'PLATFORM' },
+      }),
+      db.expectancySnapshot.findMany({
+        where: { restaurantId, entityType: 'PROMOTION' },
+      }),
+      db.expectancySnapshot.findFirst({
+        where: { restaurantId, entityType: 'EMPLOYEE', entityId: LABOUR_AGGREGATE_ID },
+      }),
+      db.expectancySnapshot.findFirst({
+        where: {
+          restaurantId,
+          entityType: 'INGREDIENT',
+          entityId: INGREDIENT_AGGREGATE_ID,
+        },
+      }),
+      db.platform.findMany({
+        where: { restaurantId },
+        select: { id: true, name: true },
+      }),
+    ])
 
   const platformNameById = new Map(platforms.map((p) => [p.id, p.name]))
 
@@ -70,7 +85,25 @@ export async function GET() {
   return NextResponse.json({
     channels,
     promotions,
-    labour: null,
-    ingredients: null,
+    labour: labourSnapshot
+      ? {
+          expectancy: labourSnapshot.expectancy,
+          winRate: labourSnapshot.winRate,
+          avgWin: labourSnapshot.avgWin,
+          avgLoss: labourSnapshot.avgLoss,
+          periodWeeks: labourSnapshot.periodWeeks,
+          calculatedAt: labourSnapshot.calculatedAt,
+        }
+      : null,
+    ingredients: ingredientSnapshot
+      ? {
+          expectancy: ingredientSnapshot.expectancy,
+          winRate: ingredientSnapshot.winRate,
+          avgWin: ingredientSnapshot.avgWin,
+          avgLoss: ingredientSnapshot.avgLoss,
+          periodWeeks: ingredientSnapshot.periodWeeks,
+          calculatedAt: ingredientSnapshot.calculatedAt,
+        }
+      : null,
   })
 }

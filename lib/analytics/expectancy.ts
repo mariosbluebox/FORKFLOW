@@ -1,6 +1,6 @@
 import type { ExpectancyEntityType } from '@prisma/client'
 import { db } from '@/lib/db'
-import { getWeeklySnapshot, isoWeekStart } from '@/lib/analytics/weekly-snapshot'
+import { getWeeklySnapshot, isoWeekStart, isoWeekEnd } from '@/lib/analytics/weekly-snapshot'
 
 const DEFAULT_WINDOW_WEEKS = 8
 
@@ -310,4 +310,182 @@ export async function recomputePromoExpectancy(
   }
 
   return results
+}
+
+// ─── Labour expectancy ──────────────────────────────────────────────────────
+
+export type LabourExpectancyRow = ExpectancyResult & {
+  entityId: string
+}
+
+export const LABOUR_AGGREGATE_ID = 'AGGREGATE'
+
+// Single restaurant-level row. Per-week data point = total channel net profit
+// divided by total payroll hours. Weeks with zero recorded hours are skipped.
+// Persists entityType=EMPLOYEE, entityId='AGGREGATE'.
+export async function recomputeLabourExpectancy(
+  restaurantId: string,
+  options: RecomputeChannelExpectancyOptions = {}
+): Promise<LabourExpectancyRow | null> {
+  const windowWeeks = options.windowWeeks ?? DEFAULT_WINDOW_WEEKS
+  const anchor = isoWeekStart(options.anchorDate ?? new Date())
+
+  const weekStarts: Date[] = []
+  for (let i = 0; i < windowWeeks; i++) {
+    const d = new Date(anchor)
+    d.setUTCDate(d.getUTCDate() - 7 * i)
+    weekStarts.push(d)
+  }
+
+  const [snapshots, hoursByWeek] = await Promise.all([
+    Promise.all(weekStarts.map((ws) => getWeeklySnapshot(restaurantId, ws))),
+    Promise.all(
+      weekStarts.map((ws) =>
+        db.payrollEntry.aggregate({
+          where: {
+            restaurantId,
+            periodStart: { gte: ws },
+            periodEnd: { lte: isoWeekEnd(ws) },
+          },
+          _sum: { hoursWorked: true },
+        })
+      )
+    ),
+  ])
+
+  const series: number[] = []
+  for (let i = 0; i < weekStarts.length; i++) {
+    const totalHours = hoursByWeek[i]._sum.hoursWorked ?? 0
+    if (totalHours === 0) continue
+    const totalNetProfit = snapshots[i].channels.reduce(
+      (s, c) => s + c.netProfit,
+      0
+    )
+    series.push(totalNetProfit / totalHours)
+  }
+
+  const r = computeExpectancy(series)
+  if (r.dataPoints === 0) return null
+
+  const EMPLOYEE: ExpectancyEntityType = 'EMPLOYEE'
+
+  await db.expectancySnapshot.upsert({
+    where: {
+      restaurantId_entityType_entityId: {
+        restaurantId,
+        entityType: EMPLOYEE,
+        entityId: LABOUR_AGGREGATE_ID,
+      },
+    },
+    create: {
+      restaurantId,
+      entityType: EMPLOYEE,
+      entityId: LABOUR_AGGREGATE_ID,
+      periodWeeks: r.dataPoints,
+      winRate: r.winRate,
+      avgWin: r.avgWin,
+      avgLoss: r.avgLoss,
+      expectancy: r.expectancy,
+    },
+    update: {
+      periodWeeks: r.dataPoints,
+      winRate: r.winRate,
+      avgWin: r.avgWin,
+      avgLoss: r.avgLoss,
+      expectancy: r.expectancy,
+      calculatedAt: new Date(),
+    },
+  })
+
+  return { entityId: LABOUR_AGGREGATE_ID, ...r }
+}
+
+// ─── Ingredient expectancy ──────────────────────────────────────────────────
+
+export type IngredientExpectancyRow = ExpectancyResult & {
+  entityId: string
+}
+
+export const INGREDIENT_AGGREGATE_ID = 'AGGREGATE'
+
+// Single restaurant-level row. Per-week data point = total channel net profit
+// divided by total ingredient cost actually consumed that week (StockMovement
+// type OUT and WASTAGE — IN is purchase timing, which is lumpy and doesn't
+// causally match the week's revenue). Weeks with zero consumed cost are
+// skipped. Persists entityType=INGREDIENT, entityId='AGGREGATE'.
+export async function recomputeIngredientExpectancy(
+  restaurantId: string,
+  options: RecomputeChannelExpectancyOptions = {}
+): Promise<IngredientExpectancyRow | null> {
+  const windowWeeks = options.windowWeeks ?? DEFAULT_WINDOW_WEEKS
+  const anchor = isoWeekStart(options.anchorDate ?? new Date())
+
+  const weekStarts: Date[] = []
+  for (let i = 0; i < windowWeeks; i++) {
+    const d = new Date(anchor)
+    d.setUTCDate(d.getUTCDate() - 7 * i)
+    weekStarts.push(d)
+  }
+
+  const [snapshots, costsByWeek] = await Promise.all([
+    Promise.all(weekStarts.map((ws) => getWeeklySnapshot(restaurantId, ws))),
+    Promise.all(
+      weekStarts.map((ws) =>
+        db.stockMovement.aggregate({
+          where: {
+            restaurantId,
+            type: { in: ['OUT', 'WASTAGE'] },
+            date: { gte: ws, lte: isoWeekEnd(ws) },
+          },
+          _sum: { totalCost: true },
+        })
+      )
+    ),
+  ])
+
+  const series: number[] = []
+  for (let i = 0; i < weekStarts.length; i++) {
+    const totalCost = costsByWeek[i]._sum.totalCost ?? 0
+    if (totalCost === 0) continue
+    const totalNetProfit = snapshots[i].channels.reduce(
+      (s, c) => s + c.netProfit,
+      0
+    )
+    series.push(totalNetProfit / totalCost)
+  }
+
+  const r = computeExpectancy(series)
+  if (r.dataPoints === 0) return null
+
+  const INGREDIENT: ExpectancyEntityType = 'INGREDIENT'
+
+  await db.expectancySnapshot.upsert({
+    where: {
+      restaurantId_entityType_entityId: {
+        restaurantId,
+        entityType: INGREDIENT,
+        entityId: INGREDIENT_AGGREGATE_ID,
+      },
+    },
+    create: {
+      restaurantId,
+      entityType: INGREDIENT,
+      entityId: INGREDIENT_AGGREGATE_ID,
+      periodWeeks: r.dataPoints,
+      winRate: r.winRate,
+      avgWin: r.avgWin,
+      avgLoss: r.avgLoss,
+      expectancy: r.expectancy,
+    },
+    update: {
+      periodWeeks: r.dataPoints,
+      winRate: r.winRate,
+      avgWin: r.avgWin,
+      avgLoss: r.avgLoss,
+      expectancy: r.expectancy,
+      calculatedAt: new Date(),
+    },
+  })
+
+  return { entityId: INGREDIENT_AGGREGATE_ID, ...r }
 }

@@ -11,6 +11,8 @@
     "seed:weekly-snapshot": "TS_NODE_PROJECT=scripts/tsconfig.json ts-node -r tsconfig-paths/register scripts/seed-weekly-snapshot-fixture.ts",
     "verify:channel-expectancy": "TS_NODE_PROJECT=scripts/tsconfig.json ts-node -r tsconfig-paths/register scripts/verify-channel-expectancy.ts",
     "verify:promo-expectancy": "TS_NODE_PROJECT=scripts/tsconfig.json ts-node -r tsconfig-paths/register scripts/verify-promo-expectancy.ts",
+    "verify:labour-expectancy": "TS_NODE_PROJECT=scripts/tsconfig.json ts-node -r tsconfig-paths/register scripts/verify-labour-expectancy.ts",
+    "verify:ingredient-expectancy": "TS_NODE_PROJECT=scripts/tsconfig.json ts-node -r tsconfig-paths/register scripts/verify-ingredient-expectancy.ts",
     "prepare": "husky"
   },
   "prisma": {
