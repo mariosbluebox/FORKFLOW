@@ -6,6 +6,7 @@ import { signOut } from 'next-auth/react'
 import { cn } from '@/lib/utils'
 import { usePlan } from '@/lib/usePlan'
 import type { Feature } from '@/lib/feature-gate'
+import { VERSION_LABEL } from '@/lib/version'
 
 type NavItem = {
   href: string
@@ -102,6 +103,9 @@ export default function Sidebar() {
           <span className="w-4 text-center text-xs">→</span>
           Sign out
         </button>
+        <p className="px-3 pt-3 text-[10px] text-gray-600 font-mono tracking-tight">
+          {VERSION_LABEL}
+        </p>
       </div>
     </aside>
   )
