@@ -13,7 +13,9 @@
     "verify:promo-expectancy": "TS_NODE_PROJECT=scripts/tsconfig.json ts-node -r tsconfig-paths/register scripts/verify-promo-expectancy.ts",
     "verify:labour-expectancy": "TS_NODE_PROJECT=scripts/tsconfig.json ts-node -r tsconfig-paths/register scripts/verify-labour-expectancy.ts",
     "verify:ingredient-expectancy": "TS_NODE_PROJECT=scripts/tsconfig.json ts-node -r tsconfig-paths/register scripts/verify-ingredient-expectancy.ts",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:e2e": "playwright test --project=chromium",
+    "test:e2e:ui": "playwright test --ui"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
@@ -41,6 +43,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.3.4",
+    "@playwright/test": "^1.60.0",
     "@secretlint/secretlint-rule-preset-recommend": "^13.0.2",
     "@tailwindcss/postcss": "4.2.1",
     "@types/bcryptjs": "2.4.6",

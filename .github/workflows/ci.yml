@@ -80,3 +80,39 @@ jobs:
 
       - name: Audit production dependencies
         run: npm audit --audit-level=high --omit=dev
+
+  e2e:
+    name: Playwright E2E (Chromium)
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      NEXTAUTH_SECRET: ci-secret-placeholder
+      NEXTAUTH_URL: http://localhost:3000
+      STRIPE_SECRET_KEY: sk_test_placeholder
+      STRIPE_WEBHOOK_SECRET: whsec_placeholder
+      STRIPE_BASIC_PRICE_ID: price_placeholder
+      STRIPE_PRO_PRICE_ID: price_placeholder
+      POSTMARK_INBOUND_WEBHOOK_TOKEN: placeholder
+      POSTMARK_SERVER_TOKEN: placeholder
+      CRON_SECRET: placeholder
+      SUPER_ADMIN_EMAIL: admin@placeholder.com
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Install Playwright browser (Chromium)
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: npm run test:e2e
