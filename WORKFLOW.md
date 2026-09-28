@@ -9,10 +9,27 @@
 
 ## Rules
 
-- **Nobody pushes directly to `main`.** Both agents land work via PR, reviewed and merged by the human.
+- **Code and agent-facing docs land via PR.** Anything that changes runtime behavior or agent behavior goes through a reviewed pull request.
+- **Human-facing docs (`README.md`, `CHANGELOG/**`, `SECURITY.md`, `codex/README.md`) can go direct to `main`.** The friction of a PR isn't worth it for prose nobody acts on.
 - Claude works on short-lived feature branches in `/DevOps/FORKFLOW`. One branch + one PR per task.
 - Codex never runs commands inside `/DevOps/FORKFLOW`. All Codex work stays inside `/DevOps/FORKFLOW-codex`.
 - Codex opens PRs from `codex-work` into `main`. Same review bar as Claude's PRs — never auto-merged.
+
+## What counts as "agent-facing"
+
+Files Claude/Codex read as instructions (not files humans browse). The test: *"If I edited this overnight without telling either agent, would the next task produce different code?"* If yes → agent-facing → PR.
+
+**Always-on rules (auto-loaded or read every session):**
+- `CLAUDE.md` — Claude's house rules.
+- `AGENTS.md` — Codex's house rules.
+- `WORKFLOW.md` — this file.
+- `.claude/commands/*.md` — custom slash command definitions.
+
+**Read when working on the relevant domain:**
+- `SPEC.md`, `SPEC2.md` — product truth (core app + analytics).
+- `PHASE4.md` — current build plan.
+- `SECURITY-CHECKLIST.md` — consulted during security audits.
+- `codex/working-agreement.md`, `codex/INDEX.md`, `codex/open-questions.md`, `codex/decisions/*.md`.
 
 ## Claude workflow
 
