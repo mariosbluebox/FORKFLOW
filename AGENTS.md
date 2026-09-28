@@ -199,11 +199,10 @@ const employerNI = Math.max(0, (grossPay - EMPLOYER_NI_THRESHOLD_WEEKLY * weeks)
 ## Development Phases
 
 1. **Phase 0** ✅ — SaaS schema, multi-tenant auth, self-signup, Stripe, super-admin panel
-2. **Phase 1** 🔄 — Core modules: dashboard, revenue, expenses, payroll, inventory, reports
-   - All API routes complete
-   - Pages: dashboard, revenue, expenses, payroll (list+log) done
-   - Still needed: employees page, inventory pages, reports pages
-3. **Phase 2** — Platform analytics: manual entry + CSV import per platform
-4. **Phase 3** — Automated email ingestion: Postmark inbound, CSV parsers, ImportLog, Notifications
-5. **Phase 4** — Advanced analytics: correlations, expectancy, financial health score, scenario modelling
+2. **Phase 1** ✅ — Core modules: dashboard, revenue, expenses, payroll (+ employees), inventory (+ movements, menu), reports (P&L, cash flow, VAT, payroll)
+3. **Phase 2** ✅ — Platform analytics: manual entry + CSV import per platform
+4. **Phase 3** ✅ — Automated email ingestion: Postmark inbound, CSV parsers, ImportLog, Notifications
+5. **Phase 4** 🔄 — Advanced analytics (build plan and progress in `PHASE4.md`)
+   - Expectancy: Tasks 1–9 done (channel, promotion, labour, ingredient); Task 10 (weekly recalc cron) remaining
+   - Still needed: correlations, financial health score, scenario modelling
 6. **Phase 5** — Polish: PDF export, cron jobs, mobile layout, direct POS API integration (future)
