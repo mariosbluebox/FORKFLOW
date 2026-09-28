@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getSessionRestaurantId, unauthorized } from '@/lib/session'
+import { getSessionRestaurantId, unauthorized, notFound } from '@/lib/session'
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const restaurantId = await getSessionRestaurantId()
@@ -8,6 +8,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params
   const { date, categoryId, supplier, description, netAmount, vatAmount, grossAmount, vatReclaimable } = await req.json()
+
+  if (categoryId) {
+    const category = await db.expenseCategory.findFirst({ where: { id: categoryId, restaurantId } })
+    if (!category) return notFound()
+  }
 
   const entry = await db.expenseEntry.update({
     where: { id, restaurantId },

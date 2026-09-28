@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getSessionRestaurantId, unauthorized, badRequest } from '@/lib/session'
+import { getSessionRestaurantId, unauthorized, badRequest, notFound } from '@/lib/session'
 import { EMPLOYER_NI_RATE, EMPLOYER_NI_THRESHOLD_WEEKLY } from '@/lib/constants'
 
 function calcEmployerNI(grossPay: number, periodStart: Date, periodEnd: Date): number {
@@ -50,6 +50,9 @@ export async function POST(req: NextRequest) {
 
   const { employeeId, periodStart, periodEnd, hoursWorked, grossPay, notes } = await req.json()
   if (!employeeId || !periodStart || !periodEnd || grossPay == null) return badRequest('Missing required fields')
+
+  const employee = await db.employee.findFirst({ where: { id: employeeId, restaurantId } })
+  if (!employee) return notFound()
 
   const start = new Date(periodStart)
   const end = new Date(periodEnd)

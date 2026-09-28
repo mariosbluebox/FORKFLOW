@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getSessionRestaurantId, unauthorized, badRequest } from '@/lib/session'
+import { getSessionRestaurantId, unauthorized, badRequest, notFound } from '@/lib/session'
 import { StockMovementType } from '@prisma/client'
 
 export async function GET(req: NextRequest) {
@@ -27,6 +27,9 @@ export async function POST(req: NextRequest) {
 
   const { inventoryItemId, type, quantity, costPerUnit, date, notes } = await req.json()
   if (!inventoryItemId || !type || quantity == null) return badRequest('Missing required fields')
+
+  const item = await db.inventoryItem.findFirst({ where: { id: inventoryItemId, restaurantId } })
+  if (!item) return notFound()
 
   const qty = parseFloat(quantity)
   const cpu = costPerUnit ? parseFloat(costPerUnit) : null
