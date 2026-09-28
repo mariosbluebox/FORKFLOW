@@ -1,36 +1,130 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ForkFlow
 
-## Getting Started
+ForkFlow is a restaurant analytics and decision-support platform built to turn day-to-day operational and financial data into clear, actionable business insights.
 
-First, run the development server:
+The project combines real hospitality domain knowledge with data modelling, analytics, and modern web development. It is designed around the information restaurant operators actually work with: revenue, expenses, payroll, inventory, delivery platforms, promotions, and operating costs.
+
+## What ForkFlow does
+
+ForkFlow brings core restaurant data into one system so performance can be analysed across multiple parts of the business.
+
+Current data domains include:
+
+- Revenue by source
+- Expenses and expense categories
+- Payroll and labour costs
+- Inventory and stock movements
+- Ingredient usage and wastage
+- Menu items and food-cost targets
+- Delivery channels such as Uber Eats, Deliveroo, and Just Eat
+- Platform commissions and promotions
+- Overhead allocation
+- Operational reporting
+
+## Analytics
+
+ForkFlow includes a dedicated analytics layer focused on decision support rather than simple record keeping.
+
+Current analytics models include:
+
+- **Channel expectancy** — evaluates performance per order across sales channels
+- **Promotion expectancy** — evaluates the return associated with promotional spend
+- **Labour expectancy** — measures performance relative to labour hours
+- **Ingredient expectancy** — evaluates performance relative to ingredient cost
+- **Win rate, average win, average loss, and expectancy metrics**
+- **Correlation storage** for relationships between operating variables
+
+The goal is to help answer practical questions such as:
+
+- Which sales channels are actually contributing positively?
+- Are promotions generating enough value to justify their cost?
+- How efficiently is labour being converted into business performance?
+- How are ingredient costs and wastage affecting results?
+- Where are operational costs reducing profitability?
+
+## Tech stack
+
+- **Next.js 15**
+- **React 19**
+- **TypeScript**
+- **PostgreSQL**
+- **Prisma ORM**
+- **Recharts**
+- **NextAuth**
+- **Stripe**
+- **Tailwind CSS**
+- **Git / GitHub**
+
+## Data model
+
+The PostgreSQL data model is designed around real restaurant operations.
+
+Core entities include:
+
+- Restaurants and users
+- Revenue entries
+- Expense categories and expenses
+- Employees and payroll
+- Inventory items and stock movements
+- Menu items
+- Delivery platforms and reporting periods
+- Promotion charges
+- Overhead allocation settings
+- Correlation results
+- Expectancy snapshots
+
+Prisma is used for schema definition, relationships, migrations, and database access.
+
+## Why I built it
+
+My background is in hospitality and restaurant operations, where I worked directly with food costs, stock control, ordering, wastage, staffing, suppliers, menu costing, margins, and production planning.
+
+ForkFlow grew from a simple question:
+
+> How can restaurant operating data be turned into information that helps an owner make better decisions?
+
+The project is also part of my transition into data analytics and data science, allowing me to combine domain knowledge with data modelling, analytical reasoning, database design, and software development.
+
+## Project status
+
+ForkFlow is under active development.
+
+The current application includes operational modules for revenue, expenses, payroll, inventory, platforms, reporting, and analytics. Additional analytical features and portfolio documentation are being developed as the project evolves.
+
+## Local development
+
+### Requirements
+
+- Node.js
+- PostgreSQL
+- npm
+
+### Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/mariosbluebox/FORKFLOW.git
+cd FORKFLOW
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Create the required environment variables, including a PostgreSQL `DATABASE_URL`, then run Prisma migrations and start the application:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npx prisma migrate dev
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open `http://localhost:3000` in your browser.
 
-## Learn More
+## Portfolio focus
 
-To learn more about Next.js, take a look at the following resources:
+ForkFlow demonstrates practical experience with:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Data analysis
+- PostgreSQL
+- Relational data modelling
+- Business and financial analytics
+- Data visualisation
+- TypeScript
+- Full-stack application development
+- Translating domain knowledge into analytical software
