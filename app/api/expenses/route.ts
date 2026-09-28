@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getSessionRestaurantId, unauthorized, badRequest } from '@/lib/session'
+import { getSessionRestaurantId, unauthorized, badRequest, notFound } from '@/lib/session'
 
 export async function GET(req: NextRequest) {
   const restaurantId = await getSessionRestaurantId()
@@ -53,6 +53,9 @@ export async function POST(req: NextRequest) {
   if (!date || !categoryId || !description || netAmount == null || grossAmount == null) {
     return badRequest('Missing required fields')
   }
+
+  const category = await db.expenseCategory.findFirst({ where: { id: categoryId, restaurantId } })
+  if (!category) return notFound()
 
   const entry = await db.expenseEntry.create({
     data: {
