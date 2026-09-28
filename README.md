@@ -55,6 +55,20 @@ The goal is to help answer practical questions such as:
 - **Tailwind CSS**
 - **Git / GitHub**
 
+## Architecture
+
+ForkFlow uses a full-stack Next.js architecture with React and TypeScript powering the user interface, dashboards, and application workflows.
+
+Operational and financial data is stored in PostgreSQL, with Prisma providing the schema, relationships, migrations, and application-level database access.
+
+The analytics flow follows a simple pipeline:
+
+**Business data → PostgreSQL → Prisma/data logic → analytical calculations → dashboards and decision-support views**
+
+The main business domains are revenue, expenses, payroll, inventory, stock movements, menu items, delivery platforms, promotions, overhead allocation, and analytical snapshots such as expectancy and correlation results.
+
+This keeps the operational data model, analytical logic, and presentation layer clearly connected while allowing each area to evolve independently.
+
 ## Data model
 
 The PostgreSQL data model is designed around real restaurant operations.
