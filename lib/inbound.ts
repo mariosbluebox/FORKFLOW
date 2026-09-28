@@ -142,6 +142,9 @@ export function detectPlatformFromEmail(fromAddress: string): PlatformName | nul
 
 // Extract bare email from "Name <email>" format
 export function extractEmail(address: string): string {
-  const match = address.match(/<([^>]+)>/)
-  return match ? match[1].trim() : address.split(',')[0].trim()
+  // indexOf instead of a regex: headers are untrusted, and /<([^>]+)>/ is
+  // quadratic on input like "<<<<…" with no closing bracket (CodeQL).
+  const start = address.indexOf('<')
+  const end = start === -1 ? -1 : address.indexOf('>', start + 1)
+  return end > start + 1 ? address.slice(start + 1, end).trim() : address.split(',')[0].trim()
 }
