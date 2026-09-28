@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getSessionRestaurantId, unauthorized } from '@/lib/session'
+import { getSessionRestaurantId, unauthorized, requireFeature } from '@/lib/session'
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const restaurantId = await getSessionRestaurantId()
   if (!restaurantId) return unauthorized()
+  const denied = await requireFeature(restaurantId, 'platforms')
+  if (denied) return denied
 
   const { id } = await params
   const body = await req.json()

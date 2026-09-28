@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getSessionRestaurantId, unauthorized } from '@/lib/session'
+import { getSessionRestaurantId, unauthorized, requireFeature } from '@/lib/session'
 
 export async function GET(req: Request) {
   const restaurantId = await getSessionRestaurantId()
   if (!restaurantId) return unauthorized()
+  const denied = await requireFeature(restaurantId, 'platforms')
+  if (denied) return denied
 
   const { searchParams } = new URL(req.url)
   const platformId = searchParams.get('platformId')
@@ -28,6 +30,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const restaurantId = await getSessionRestaurantId()
   if (!restaurantId) return unauthorized()
+  const denied = await requireFeature(restaurantId, 'platforms')
+  if (denied) return denied
 
   const body = await req.json()
   const { platformId, periodStart, periodEnd, orderCount, grossRevenue, commissionCharged, netRevenue } = body

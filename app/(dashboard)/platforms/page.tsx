@@ -1,6 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { useState, useEffect, useCallback } from 'react'
+import { usePlan } from '@/lib/usePlan'
 import { formatCurrency, formatDate, formatPercent } from '@/lib/utils'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -169,7 +171,43 @@ function MarginBadge({ value }: { value: number | null }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+function UpgradeGate() {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
+      <div className="text-3xl mb-3">🔒</div>
+      <h2 className="text-xl font-semibold text-gray-900 mb-2">Platform analytics is a Pro feature</h2>
+      <p className="text-sm text-gray-600 mb-5 max-w-md mx-auto">
+        Track commission, promotions and true profit per order across Uber Eats, Deliveroo and Just Eat.
+      </p>
+      <Link
+        href="/settings/billing"
+        className="inline-flex px-5 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
+      >
+        Upgrade to Pro
+      </Link>
+    </div>
+  )
+}
+
+// Gate before mounting the page so Basic users never fire the (403) API calls.
 export default function PlatformsPage() {
+  const plan = usePlan()
+  if (plan.loading) return <Loader />
+  if (!plan.can('platforms')) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Platform Analytics</h1>
+          <p className="text-sm text-gray-500 mt-1">Delivery platform performance &amp; ROI</p>
+        </div>
+        <UpgradeGate />
+      </div>
+    )
+  }
+  return <PlatformsContent />
+}
+
+function PlatformsContent() {
   const defaults = thisMonthDates()
   const [from, setFrom] = useState(defaults.from)
   const [to, setTo] = useState(defaults.to)

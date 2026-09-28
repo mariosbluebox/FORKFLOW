@@ -1,6 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { usePlan } from '@/lib/usePlan'
 import { formatDate } from '@/lib/utils'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -35,7 +37,43 @@ function Loader() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+function UpgradeGate() {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
+      <div className="text-3xl mb-3">🔒</div>
+      <h2 className="text-xl font-semibold text-gray-900 mb-2">Email integrations is a Pro feature</h2>
+      <p className="text-sm text-gray-600 mb-5 max-w-md mx-auto">
+        Forward your weekly platform statements to a unique address and have them imported automatically.
+      </p>
+      <Link
+        href="/settings/billing"
+        className="inline-flex px-5 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
+      >
+        Upgrade to Pro
+      </Link>
+    </div>
+  )
+}
+
+// Gate before mounting the page so Basic users never fire the (403) API calls.
 export default function IntegrationsPage() {
+  const plan = usePlan()
+  if (plan.loading) return <Loader />
+  if (!plan.can('email-ingestion')) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Email Integrations</h1>
+          <p className="text-sm text-gray-500 mt-1">Auto-import your weekly platform statements by forwarding emails to your unique inbound address.</p>
+        </div>
+        <UpgradeGate />
+      </div>
+    )
+  }
+  return <IntegrationsContent />
+}
+
+function IntegrationsContent() {
   const [inboundEmail, setInboundEmail] = useState('')
   const [importLogs, setImportLogs] = useState<ImportLog[]>([])
   const [loading, setLoading] = useState(true)

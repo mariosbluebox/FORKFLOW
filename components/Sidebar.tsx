@@ -29,19 +29,19 @@ const sections: NavSection[] = [
       { href: '/payroll', label: 'Payroll', icon: '👥' },
       { href: '/inventory', label: 'Inventory', icon: '📦' },
       { href: '/reports', label: 'Reports', icon: '📊' },
-      { href: '/platforms', label: 'Platforms', icon: '🛵' },
+      { href: '/platforms', label: 'Platforms', icon: '🛵', requires: 'platforms' },
     ],
   },
   {
     heading: 'Analytics',
     items: [
       { href: '/analytics/expectancy', label: 'Expectancy', icon: '📈', requires: 'analytics' },
-      { href: '/health', label: 'Health Score', icon: '❤' },
+      { href: '/health', label: 'Health Score', icon: '❤', requires: 'health' },
     ],
   },
   {
     items: [
-      { href: '/settings/integrations', label: 'Integrations', icon: '⚙' },
+      { href: '/settings/integrations', label: 'Integrations', icon: '⚙', requires: 'email-ingestion' },
     ],
   },
 ]

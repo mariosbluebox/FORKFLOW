@@ -3,7 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getSessionRestaurantId, unauthorized, badRequest } from '@/lib/session'
+import { getSessionRestaurantId, unauthorized, badRequest, requireFeature } from '@/lib/session'
 import { processInboundCSV } from '@/lib/inbound'
 import { PlatformName } from '@prisma/client'
 
@@ -12,6 +12,8 @@ const VALID_PLATFORMS: PlatformName[] = ['UBEREATS', 'JUSTEAT', 'DELIVEROO']
 export async function POST(req: NextRequest) {
   const restaurantId = await getSessionRestaurantId()
   if (!restaurantId) return unauthorized()
+  const denied = await requireFeature(restaurantId, 'email-ingestion')
+  if (denied) return denied
 
   const formData = await req.formData()
   const file = formData.get('file') as File | null
