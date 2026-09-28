@@ -8,20 +8,30 @@ const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL ?? 'admin@restofinance.a
 const DEMO_EMAIL = process.env.DEMO_EMAIL ?? 'owner@demo-restaurant.com'
 const INBOUND_DOMAIN = process.env.INBOUND_EMAIL_DOMAIN ?? 'inbound.restofinance.app'
 
+// Passwords come from env so no usable credentials live in the repo.
+function requireEnv(name: string): string {
+  const value = process.env[name]
+  if (!value) throw new Error(`${name} must be set to run the seed`)
+  return value
+}
+
 async function main() {
+  const adminPassword = requireEnv('SEED_ADMIN_PASSWORD')
+  const demoPassword = requireEnv('SEED_DEMO_PASSWORD')
+
   // ── Super-admin user (no restaurant) ────────────────────────────────────────
   const existingAdmin = await prisma.user.findUnique({ where: { email: SUPER_ADMIN_EMAIL } })
   if (!existingAdmin) {
     await prisma.user.create({
       data: {
         email: SUPER_ADMIN_EMAIL,
-        passwordHash: await bcrypt.hash('adminpassword123', 12),
+        passwordHash: await bcrypt.hash(adminPassword, 12),
         name: 'Super Admin',
         isAdmin: true,
         // no restaurantId — admin has no restaurant
       },
     })
-    console.log(`Created super-admin: ${SUPER_ADMIN_EMAIL} / adminpassword123`)
+    console.log(`Created super-admin: ${SUPER_ADMIN_EMAIL}`)
   }
 
   // ── Demo restaurant + owner ──────────────────────────────────────────────────
@@ -42,7 +52,7 @@ async function main() {
     await prisma.user.create({
       data: {
         email: DEMO_EMAIL,
-        passwordHash: await bcrypt.hash('password123', 12),
+        passwordHash: await bcrypt.hash(demoPassword, 12),
         name: 'Demo Owner',
         restaurantId: restaurant.id,
       },
@@ -69,12 +79,15 @@ async function main() {
       data: { restaurantId: restaurant.id },
     })
 
-    console.log(`Created demo restaurant + owner: ${DEMO_EMAIL} / password123`)
+    console.log(`Created demo restaurant + owner: ${DEMO_EMAIL}`)
   }
 
   console.log('Seed complete.')
 }
 
 main()
-  .catch(console.error)
+  .catch((e) => {
+    console.error(e)
+    process.exitCode = 1
+  })
   .finally(() => prisma.$disconnect())
