@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getSessionRestaurantId, unauthorized } from '@/lib/session'
-import { hasFeature } from '@/lib/feature-gate'
+import { getSessionRestaurantId, unauthorized, requireFeature } from '@/lib/session'
 import {
   decodePromoEntityId,
   LABOUR_AGGREGATE_ID,
@@ -12,15 +11,8 @@ export async function GET() {
   const restaurantId = await getSessionRestaurantId()
   if (!restaurantId) return unauthorized()
 
-  const restaurant = await db.restaurant.findUnique({
-    where: { id: restaurantId },
-    select: { plan: true, trialEndsAt: true },
-  })
-  if (!restaurant) return unauthorized()
-
-  if (!hasFeature(restaurant.plan, 'analytics', restaurant.trialEndsAt.toISOString())) {
-    return NextResponse.json({ error: 'Upgrade required' }, { status: 403 })
-  }
+  const denied = await requireFeature(restaurantId, 'analytics')
+  if (denied) return denied
 
   const [platformSnapshots, promoSnapshots, labourSnapshot, ingredientSnapshot, platforms] =
     await Promise.all([

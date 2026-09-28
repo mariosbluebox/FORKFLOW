@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getSessionRestaurantId, unauthorized } from '@/lib/session'
+import { getSessionRestaurantId, unauthorized, requireFeature } from '@/lib/session'
 import { allocateAmount, computeAllocationTotals } from '@/lib/analytics/allocation'
 
 export async function GET(req: Request) {
   const restaurantId = await getSessionRestaurantId()
   if (!restaurantId) return unauthorized()
+  const denied = await requireFeature(restaurantId, 'platforms')
+  if (denied) return denied
 
   const { searchParams } = new URL(req.url)
   const from = searchParams.get('from')

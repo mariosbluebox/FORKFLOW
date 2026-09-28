@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { timingSafeEqual } from 'node:crypto'
 import { db } from '@/lib/db'
 import { detectPlatformFromEmail, extractEmail, processInboundCSV } from '@/lib/inbound'
+import { hasFeature } from '@/lib/feature-gate'
 
 // Constant-time token comparison. Prevents byte-by-byte timing-oracle attacks
 // on the shared secret. Length check is a pre-filter — timingSafeEqual throws
@@ -63,11 +64,15 @@ export async function POST(req: NextRequest) {
   // Match To address → Restaurant
   const restaurant = await db.restaurant.findFirst({
     where: { inboundEmail: toAddress, isActive: true },
-    select: { id: true, currency: true },
+    select: { id: true, currency: true, plan: true, trialEndsAt: true },
   })
 
   if (!restaurant) {
     return NextResponse.json({ ok: true, reason: 'no restaurant for this address' })
+  }
+
+  if (!hasFeature(restaurant.plan, 'email-ingestion', restaurant.trialEndsAt.toISOString())) {
+    return NextResponse.json({ ok: true, reason: 'plan does not include email ingestion' })
   }
 
   // Detect platform from sender domain
