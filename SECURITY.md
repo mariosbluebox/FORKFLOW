@@ -203,7 +203,8 @@ entries shouldn't be edited (they're a record of *why* at the time).
 
 ## 8. Reporting a vulnerability
 
-For now, internal only — report to Marios (`Marios_arapi@outlook.com`).
+Please do **not** open a public issue. Report privately via GitHub's
+[private vulnerability reporting](https://github.com/mariosbluebox/FORKFLOW/security/advisories/new).
 
 Set up a proper `security@` mailbox + responsible-disclosure policy before
 public launch.
