@@ -346,3 +346,13 @@ model ExpectancySnapshot {
 
   @@unique([restaurantId, entityType, entityId])
 }
+
+// ─── Security ────────────────────────────────────────────────────────────────
+
+// Fixed-window rate-limit counters (see lib/rate-limit.ts). Not tenant data:
+// keys are e.g. "login:ip:<ip>" / "login:email:<email>", so no restaurantId.
+model RateLimit {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+}

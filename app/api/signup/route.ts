@@ -3,10 +3,19 @@ import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
 import { DEFAULT_CATEGORIES, DEFAULT_PLATFORMS } from '@/lib/constants'
 import { generateUniqueSlug, randomString } from '@/lib/utils'
+import { rateLimit, clientIp, RATE_LIMITS } from '@/lib/rate-limit'
 
 const INBOUND_DOMAIN = process.env.INBOUND_EMAIL_DOMAIN ?? 'inbound.restofinance.app'
 
 export async function POST(req: NextRequest) {
+  const { allowed, retryAfterSec } = await rateLimit(`signup:ip:${clientIp(req.headers)}`, RATE_LIMITS.signupPerIp)
+  if (!allowed) {
+    return NextResponse.json(
+      { error: 'Too many sign-up attempts. Please try again later.' },
+      { status: 429, headers: { 'Retry-After': String(retryAfterSec) } },
+    )
+  }
+
   const body = await req.json()
   const { restaurantName, name, email, password } = body
 
