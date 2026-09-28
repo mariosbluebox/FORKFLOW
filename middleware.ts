@@ -20,8 +20,12 @@ export default withAuth(
   }
 )
 
+// Machine-to-machine routes are excluded: Stripe, Postmark and Vercel Cron
+// send no session cookie, so the session check would redirect them to sign-in.
+// Each authenticates itself instead (Stripe signature, Postmark token,
+// `Bearer CRON_SECRET`) — any new route under api/cron/ must do the same.
 export const config = {
   matcher: [
-    '/((?!login|signup|api/auth|api/signup|_next/static|_next/image|favicon.ico).*)',
+    '/((?!login|signup|api/auth|api/signup|api/stripe/webhook|api/inbound/email|api/cron/|_next/static|_next/image|favicon.ico).*)',
   ],
 }
