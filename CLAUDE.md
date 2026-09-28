@@ -67,6 +67,8 @@ POSTMARK_INBOUND_WEBHOOK_TOKEN= # Postmark webhook auth token
 POSTMARK_SERVER_TOKEN=         # Postmark server token (for outbound)
 CRON_SECRET=                   # Secret header for cron routes
 SUPER_ADMIN_EMAIL=             # Email of the super-admin user
+SEED_ADMIN_PASSWORD=           # Seed-only: super-admin password (never commit)
+SEED_DEMO_PASSWORD=            # Seed-only: demo owner password (never commit)
 ```
 
 ## Architecture
